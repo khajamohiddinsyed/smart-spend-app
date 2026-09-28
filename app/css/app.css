@@ -610,7 +610,8 @@ button.set-row:hover { background: var(--surface-2); }
 .ai-bar .ai-err { color: var(--out-text); flex-basis: 100%; }
 .emoji-ideas { flex-wrap: wrap; margin: -4px 0 4px; }
 .emoji-ideas .chip { font-size: 17px; padding: 4px 8px; }
-.hbar.tap { width: 100%; text-align: left; background: none; border: 0; cursor: pointer; font: inherit; padding: 0; }
+.hbar.tap { width: 100%; text-align: left; background: none; border: 0; cursor: pointer; font: inherit; }
+.cat-list .hbar + .hbar, .stack .hbar.tap + .hbar.tap { border-top: 1px solid var(--border); }
 .hbar.tap:hover .nm span:first-of-type, .hbar.tap:hover .nm > span { color: var(--accent); }
 .hbar.tap .vl { display: inline-flex; align-items: baseline; gap: 5px; }
 .hbar.tap .vl .chev { width: 15px; height: 15px; color: var(--text-3); align-self: center; }
@@ -630,10 +631,9 @@ button.set-row:hover { background: var(--surface-2); }
 /* budget warning icon must stay small (it sits in a plain span, not a button) */
 .meter .state svg { width: 14px; height: 14px; flex: none; }
 /* a touch more breathing room between category rows */
-.hbar { padding: 15px 2px; gap: 12px 12px; }
-.hbar .track { margin-top: 2px; }
+.hbar { padding: 10px 2px 18px; gap: 6px 12px; }   /* label tight to its own bar; the bigger gap comes after */
+.hbar .track { margin-top: 0; }
 .cat-list { margin-top: 4px; }
-.cat-list .hbar:first-child { padding-top: 6px; }
 /* spend donut + summary */
 .donut-host { display: flex; justify-content: center; padding: 8px 0 2px; }
 .donut-wrap { position: relative; width: 100%; max-width: 240px; }

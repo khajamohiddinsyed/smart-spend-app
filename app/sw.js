@@ -1,7 +1,7 @@
 // Offline support: the app shell is cached; everything else goes to the network.
 // The API is never cached. Cache names start with "ss3-" so this app never touches the caches
 // of another app on the same github.io origin.
-const VERSION = 'ss3-1.5.1';
+const VERSION = 'ss3-1.5.2';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/main.js', './js/core.js', './js/categories.js', './js/parser.js', './js/ledger.js', './js/currency.js', './js/auth.js', './js/config.js',
