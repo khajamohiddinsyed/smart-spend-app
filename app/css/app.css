@@ -630,8 +630,10 @@ button.set-row:hover { background: var(--surface-2); }
 /* budget warning icon must stay small (it sits in a plain span, not a button) */
 .meter .state svg { width: 14px; height: 14px; flex: none; }
 /* a touch more breathing room between category rows */
-.hbar { padding: 12px 2px; gap: 8px 12px; }
-.cat-list { margin-top: 2px; }
+.hbar { padding: 15px 2px; gap: 12px 12px; }
+.hbar .track { margin-top: 2px; }
+.cat-list { margin-top: 4px; }
+.cat-list .hbar:first-child { padding-top: 6px; }
 /* spend donut + summary */
 .donut-host { display: flex; justify-content: center; padding: 8px 0 2px; }
 .donut-wrap { position: relative; width: 100%; max-width: 240px; }
