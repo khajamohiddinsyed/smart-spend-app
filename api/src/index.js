@@ -136,6 +136,19 @@ function cleanCategories(v) {
 }
 const parseCats = (raw) => { try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
 
+/** { categoryId: monthly limit } for built-in or custom categories. */
+function cleanBudgets(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw bad('Budgets must be an object.', 'budgets');
+  const out = {};
+  Object.keys(v).slice(0, 60).forEach((k) => {
+    if (!CATEGORIES.includes(k) && !CUSTOM_ID.test(k)) return;
+    const n = Math.round(Number(v[k]) * 100) / 100;
+    if (n > 0 && n <= 1e9) out[k] = n;
+  });
+  return out;
+}
+const parseBudgets = (raw) => { try { const v = JSON.parse(raw || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } };
+
 function cleanRate(v) {
   if (v == null || v === '') return null;
   const r = Number(v);
@@ -221,7 +234,8 @@ async function requireUser(req, env) {
 const publicUser = (u) => ({
   email: u.email, name: u.name, currency: u.currency, altCurrency: u.alt_currency || null,
   rate: u.rate || null, rateUpdatedAt: u.rate_updated_at || 0, createdAt: u.created_at,
-  categories: parseCats(u.categories), categoriesUpdatedAt: u.categories_updated_at || 0
+  categories: parseCats(u.categories), categoriesUpdatedAt: u.categories_updated_at || 0,
+  budgets: parseBudgets(u.budgets), budgetsUpdatedAt: u.budgets_updated_at || 0
 });
 
 /* -------------------------------------------------------------- handlers */
@@ -318,8 +332,10 @@ async function updateMe(req, env, u) {
   if (!alt) { rate = null; }
   const cats = b.categories !== undefined ? JSON.stringify(cleanCategories(b.categories)) : (u.categories || null);
   const catsAt = b.categories !== undefined ? Date.now() : (u.categories_updated_at || 0);
-  await env.DB.prepare('UPDATE users SET name = ?2, currency = ?3, alt_currency = ?4, rate = ?5, rate_updated_at = ?6, updated_at = ?7, categories = ?8, categories_updated_at = ?9 WHERE id = ?1')
-    .bind(u.id, name, currency, alt, rate, rateAt || 0, Date.now(), cats, catsAt).run();
+  const buds = b.budgets !== undefined ? JSON.stringify(cleanBudgets(b.budgets)) : (u.budgets || null);
+  const budsAt = b.budgets !== undefined ? Date.now() : (u.budgets_updated_at || 0);
+  await env.DB.prepare('UPDATE users SET name = ?2, currency = ?3, alt_currency = ?4, rate = ?5, rate_updated_at = ?6, updated_at = ?7, categories = ?8, categories_updated_at = ?9, budgets = ?10, budgets_updated_at = ?11 WHERE id = ?1')
+    .bind(u.id, name, currency, alt, rate, rateAt || 0, Date.now(), cats, catsAt, buds, budsAt).run();
   return { user: publicUser(await env.DB.prepare('SELECT * FROM users WHERE id = ?1').bind(u.id).first()) };
 }
 
@@ -387,7 +403,7 @@ async function sync(req, env, u) {
      WHERE r.user_id = ?1 AND r.id = j.value
      ORDER BY seq, id LIMIT ?4`
   ).bind(u.id, since, pushedIds, PAGE + 1));
-  stmts.push(env.DB.prepare('SELECT seq, rate, rate_updated_at, currency, alt_currency, name, categories_updated_at FROM users WHERE id = ?1').bind(u.id));
+  stmts.push(env.DB.prepare('SELECT seq, rate, rate_updated_at, currency, alt_currency, name, categories_updated_at, budgets_updated_at FROM users WHERE id = ?1').bind(u.id));
 
   const results = await env.DB.batch(stmts);            // one transaction
   let out = results[results.length - 2].results || [];
@@ -405,7 +421,7 @@ async function sync(req, env, u) {
   return {
     records: out.map((r) => (r.deleted ? { id: r.id, deleted: true, updatedAt: r.updated_at } : Object.assign(JSON.parse(r.data), { deleted: false }))),
     seq, more, rate: head.rate || null, rateUpdatedAt: head.rate_updated_at || 0,
-    account: { currency: head.currency, altCurrency: head.alt_currency || null, name: head.name, categoriesUpdatedAt: head.categories_updated_at || 0 },
+    account: { currency: head.currency, altCurrency: head.alt_currency || null, name: head.name, categoriesUpdatedAt: head.categories_updated_at || 0, budgetsUpdatedAt: head.budgets_updated_at || 0 },
     rejected: raw.length - rows.length
   };
 }

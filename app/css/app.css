@@ -610,3 +610,9 @@ button.set-row:hover { background: var(--surface-2); }
 .ai-bar .ai-err { color: var(--out-text); flex-basis: 100%; }
 .emoji-ideas { flex-wrap: wrap; margin: -4px 0 4px; }
 .emoji-ideas .chip { font-size: 17px; padding: 4px 8px; }
+.hbar.tap { width: 100%; text-align: left; background: none; border: 0; cursor: pointer; font: inherit; padding: 0; }
+.hbar.tap:hover .nm span:first-of-type, .hbar.tap:hover .nm > span { color: var(--accent); }
+.hbar.tap .vl { display: inline-flex; align-items: baseline; gap: 5px; }
+.hbar.tap .vl .chev { width: 15px; height: 15px; color: var(--text-3); align-self: center; }
+.filter-banner { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); font-size: 14px; }
+.filter-banner span { flex: 1; color: var(--text-2); } .filter-banner b { color: var(--text); }

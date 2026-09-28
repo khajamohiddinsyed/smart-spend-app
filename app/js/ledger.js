@@ -384,8 +384,15 @@ export function dayAggregates() {
 export function getBudgets(pid = state.profileId) {
   const raw = store.getJSON(BUDGET_PREFIX + pid, {});
   const out = {};
-  Object.keys(raw || {}).forEach((k) => { const v = Number(raw[k]); if (CAT_BY_ID[k] && v > 0) out[k] = round2(v); });
+  Object.keys(raw || {}).forEach((k) => { const v = Number(raw[k]); if ((CAT_BY_ID[k] || isCustomId(k)) && v > 0) out[k] = round2(v); });
   return out;
+}
+/** Replaces the whole set on this device (the account is the source of truth; see main.applyUser). */
+export function writeBudgets(obj, pid = state.profileId) {
+  const out = {};
+  Object.keys(obj || {}).forEach((k) => { const v = Number(obj[k]); if (v > 0) out[k] = round2(v); });
+  store.setJSON(BUDGET_PREFIX + pid, out);
+  emit('budgets');
 }
 export function setBudget(cat, amount) {
   const b = getBudgets();

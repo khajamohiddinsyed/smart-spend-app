@@ -1,7 +1,7 @@
 // Boot, routing, events and gestures. Everything else is imported.
 
 import { $, esc, on, todayISO, fromISO, fmtDateLong, addMonths, MONTHS_FULL, haptic, reducedMotion, pad, plural } from './core.js';
-import { state, load, reset, setRate, loadDemo, clearAll, restoreSnapshot, buildBackupPayload, removeProfileData } from './ledger.js';
+import { state, load, reset, setRate, loadDemo, clearAll, restoreSnapshot, buildBackupPayload, removeProfileData, writeBudgets } from './ledger.js';
 import { describe, syncNow, scheduleSync, cancelTimers, pendingCount, forgetSyncState } from './sync.js';
 import { account, loadSession, signedIn, logout, refreshUser, userColor } from './auth.js';
 import { cur, setCurrencies } from './currency.js';
@@ -85,6 +85,7 @@ function profileFromAccount() {
 
 function applyUser(u) {
   setCustomCategories(u.categories || []);
+  writeBudgets(u.budgets || {});
   setCurrencies(u.currency, u.altCurrency);
   if (!cur.alt && prefs.show === 'alt') setPref('show', 'base');
   if (u.rate && (u.rateUpdatedAt || 0) > (state.rateUpdatedAt || 0)) { state.rate = u.rate; state.rateUpdatedAt = u.rateUpdatedAt; }
@@ -216,6 +217,8 @@ function onViewClick(e) {
     case 'scope': ui.scope = t.getAttribute('data-scope'); render(); break;
     case 'filter': ui.filter = t.getAttribute('data-filter'); render(); break;
     case 'acct': ui.account = t.getAttribute('data-acct'); render(); break;
+    case 'cat-view': ui.category = t.getAttribute('data-cat'); ui.account = 'all'; ui.filter = 'all'; ui.search = ''; if (ui.scope === 'day') ui.scope = 'month'; go('activity', { force: true }); break;
+    case 'cat-clear': ui.category = 'all'; render(); break;
     case 'budgets': openBudgets(); break;
     case 'install': install(); break;
     case 'example': openQuickAdd(t.getAttribute('data-text')); break;

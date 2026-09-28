@@ -10,6 +10,7 @@ export const ui = {
   scope: 'month',                   // activity: 'day' | 'month' | 'all'
   filter: 'all',                    // 'all' | 'in' | 'out'
   account: 'all',                   // 'all', an account label, or '' for entries without one
+  category: 'all',                  // 'all' or a category id
   search: '',
   flash: {},                        // ids to highlight after add/edit
   install: null,                    // deferred install prompt, when the browser offers one
@@ -23,6 +24,7 @@ export function resetScreenState() {
   ui.scope = 'month';
   ui.filter = 'all';
   ui.account = 'all';
+  ui.category = 'all';
   ui.search = '';
   ui.flash = {};
 }

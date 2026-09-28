@@ -108,7 +108,7 @@ export async function syncNow(manual) {
       if (!res.more && changes.length <= CHUNK) break;
     }
     const u = account.user || {}, a = res && res.account;
-    if (a && (a.currency !== u.currency || a.altCurrency !== (u.altCurrency || null) || a.name !== u.name || (a.categoriesUpdatedAt || 0) !== (u.categoriesUpdatedAt || 0))) {
+    if (a && (a.currency !== u.currency || a.altCurrency !== (u.altCurrency || null) || a.name !== u.name || (a.categoriesUpdatedAt || 0) !== (u.categoriesUpdatedAt || 0) || (a.budgetsUpdatedAt || 0) !== (u.budgetsUpdatedAt || 0))) {
       refreshUser().then(() => emit('account')).catch(() => {});       // changed on another device
     }
     if (changedAny) persist('sync');

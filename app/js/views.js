@@ -136,9 +136,9 @@ export function homeView() {
     '<button class="link" data-act="go" data-go="insights">Insights</button></div>' +
     (cats.length ? cats.slice(0, 4).map((r) => {
       const c = catOf(r.id);
-      return '<div class="hbar"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span></span>' +
+      return '<button class="hbar tap" data-act="cat-view" data-cat="' + esc(r.id) + '"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span></span>' +
         '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / t.tout) * 100) + '%</small></span>' +
-        '<span class="track"><i style="width:' + Math.max(2, (r.sum / topMax) * 100).toFixed(1) + '%"></i></span></div>';
+        '<span class="track"><i style="width:' + Math.max(2, (r.sum / topMax) * 100).toFixed(1) + '%"></i></span></button>';
     }).join('') : '<p class="muted" style="margin:0">No spending in ' + esc(MONTHS_FULL[m]) + '.</p>') + '</section>';
 
   const recent = sortedTxns(state.txns).slice(0, 6);
@@ -167,6 +167,7 @@ function scopedTxns() {
   const q = ui.search.trim().toLowerCase();
   if (q) list = state.txns.filter((t) => (t.title + ' ' + catOf(t.category).label + ' ' + t.amount + ' ' + (t.account || '')).toLowerCase().indexOf(q) !== -1);
   if (ui.account !== 'all') list = list.filter((t) => (t.account || '') === ui.account);
+  if (ui.category !== 'all') list = list.filter((t) => t.category === ui.category);
   return list;
 }
 
@@ -190,6 +191,13 @@ export function activityListHtml() {
 export function activityCounts() {
   const base = scopedTxns();
   return { all: base.length, in: base.filter((t) => t.type === 'in').length, out: base.filter((t) => t.type === 'out').length };
+}
+
+function categoryBanner() {
+  if (ui.category === 'all') return '';
+  const c = catOf(ui.category);
+  return '<div class="filter-banner">' + catIcon(ui.category) + '<span>Showing <b>' + esc(c.label) + '</b></span>' +
+    '<button class="btn sm" data-act="cat-clear">' + icon('close') + 'Clear</button></div>';
 }
 
 function accountChips() {
@@ -235,7 +243,7 @@ export function activityView() {
     '</div></div></section>' +
     '<div class="seg" role="group" aria-label="Filter" id="actFilter">' +
     [['all', 'All'], ['in', 'In'], ['out', 'Out']].map(([k, l]) => '<button data-act="filter" data-filter="' + k + '" aria-pressed="' + (ui.filter === k) + '">' + l + ' <span class="c">' + c[k] + '</span></button>').join('') + '</div>' +
-    accountChips() +
+    accountChips() + categoryBanner() +
     '<div class="list" id="actList">' + activityListHtml() + '</div>';
   return { html };
 }
@@ -281,9 +289,9 @@ export function insightsView() {
   const where = '<section class="card"><div class="card-h"><div><h2>Where it went</h2><div class="sub">' + esc(money(now.tout)) + ' across ' + plural(cats.length, 'category', 'categories') + '</div></div></div>' +
     (cats.length ? cats.map((r) => {
       const c = catOf(r.id);
-      return '<div class="hbar"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span><span class="dim" style="font-weight:500;font-size:12px">' + plural(r.n, 'entry', 'entries') + '</span></span>' +
-        '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / now.tout) * 100) + '%</small></span>' +
-        '<span class="track"><i style="width:' + Math.max(2, (r.sum / cats[0].sum) * 100).toFixed(1) + '%"></i></span></div>';
+      return '<button class="hbar tap" data-act="cat-view" data-cat="' + esc(r.id) + '"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span><span class="dim" style="font-weight:500;font-size:12px">' + plural(r.n, 'entry', 'entries') + '</span></span>' +
+        '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / now.tout) * 100) + '%</small><span class="chev">' + icon('next') + '</span></span>' +
+        '<span class="track"><i style="width:' + Math.max(2, (r.sum / cats[0].sum) * 100).toFixed(1) + '%"></i></span></button>';
     }).join('') : '<p class="muted" style="margin:0">No spending recorded in ' + esc(MONTHS_FULL[m]) + '.</p>') + '</section>';
 
   const bud = '<section class="card"><div class="card-h"><div><h2>Budgets</h2><div class="sub">Monthly limits per category</div></div>' +

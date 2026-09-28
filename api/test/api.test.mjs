@@ -134,6 +134,17 @@ await test('custom categories: saved, synced to entries, validated', async () =>
   assert.equal((await call('PATCH', '/api/me', { name: 'Test User' }, token)).body.user.categories.length, 1);          // other edits keep them
 });
 
+await test('budgets: saved on the account and synced to other devices', async () => {
+  const r = await call('PATCH', '/api/me', { budgets: { Dining: 300, Transport: '150.5', Nope: 50, Shopping: -5 } }, token);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.user.budgets, { Dining: 300, Transport: 150.5 });          // unknown/negative dropped
+  assert.ok(r.body.user.budgetsUpdatedAt > 0);
+  const s = await call('POST', '/api/sync', {}, token2);
+  assert.equal(s.body.account.budgetsUpdatedAt, r.body.user.budgetsUpdatedAt);
+  assert.deepEqual((await call('GET', '/api/me', null, token2)).body.user.budgets, { Dining: 300, Transport: 150.5 });
+  assert.equal((await call('PATCH', '/api/me', { name: 'Test User' }, token)).body.user.budgets.Dining, 300);   // other edits keep them
+});
+
 await test('settings: change currency and drop the second one', async () => {
   const r = await call('PATCH', '/api/me', { currency: 'INR', altCurrency: null }, token);
   assert.deepEqual([r.body.user.currency, r.body.user.altCurrency, r.body.user.rate], ['INR', null, null]);

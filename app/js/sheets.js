@@ -4,7 +4,7 @@ import { $, esc, plural, fmtDate, fromISO, round2, haptic, todayISO, MONTHS_FULL
 import { CATEGORIES, catOf, customCategories, detectCategory } from './categories.js';
 import { parseInput } from './parser.js';
 import {
-  state, addItems, updateTxn, deleteTxn, restoreSnapshot, getBudgets, setBudget, readBackup, applyBackup, cleanAccount, knownAccounts, recategorize
+  state, addItems, updateTxn, deleteTxn, restoreSnapshot, getBudgets, writeBudgets, readBackup, applyBackup, cleanAccount, knownAccounts, recategorize
 } from './ledger.js';
 import { account, api, signedIn, updateAccount, changePassword, newRecoveryCode, deleteAccount, MIN_PASSWORD } from './auth.js';
 import { cur, CURRENCIES, currencyInfo, suggestedRate, fmtMoney } from './currency.js';
@@ -256,10 +256,16 @@ export function openBudgets() {
     submit: () => saveB(),
     click: (e, t) => { if (t.closest('[data-bud-save]')) saveB(); }
   });
-  function saveB() {
-    document.querySelectorAll('[data-bud]').forEach((inp) => setBudget(inp.getAttribute('data-bud'), inp.value));
-    closeSheet();
-    toast('Budgets saved', { tone: 'ok' });
+  async function saveB() {
+    const next = {};
+    document.querySelectorAll('[data-bud]').forEach((inp) => { const v = Number(inp.value); if (v > 0) next[inp.getAttribute('data-bud')] = round2(v); });
+    const btn = document.querySelector('[data-bud-save]'); btn.disabled = true;
+    try {
+      await updateAccount({ budgets: next });
+      writeBudgets(next);
+      closeSheet();
+      toast('Budgets saved', { tone: 'ok' });
+    } catch (e) { btn.disabled = false; toast(e.code === 'offline' ? 'You’re offline. Budgets are saved to your account, so this needs a connection.' : e.message, { tone: 'err' }); }
   }
 }
 
@@ -514,9 +520,10 @@ export function openCategories(editId) {
     btn.disabled = true;
     const id = editing.id;
     try {
-      await updateAccount({ categories: plain().filter((c) => c.id !== id) });
+      const budgets = getBudgets(); delete budgets[id];
+      await updateAccount({ categories: plain().filter((c) => c.id !== id), budgets });
       const moved = recategorize(id, 'General');                         // nothing is lost: they move to General
-      setBudget(id, 0);
+      writeBudgets(budgets);
       toast('Deleted ' + editing.label + (moved ? ' · ' + plural(moved, 'entry', 'entries') + ' moved to General' : ''), { tone: 'ok' });
       openCategories();
     } catch (e) { btn.disabled = false; msg(e.code === 'offline' ? 'You’re offline. Try again when you’re connected.' : e.message); }
