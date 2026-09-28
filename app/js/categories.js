@@ -22,7 +22,7 @@ var CATEGORIES = [
       'burger king', 'hardees', 'pizza hut', 'dominos', 'domino', 'maestro pizza', 'little caesars', 'subway', 'five guys', 'shake shack',
       'hungerstation', 'hunger station', 'jahez', 'toyou', 'mrsool', 'the chefz', 'chefz', 'keeta', 'swiggy', 'zomato', 'careem food',
       'talabat', 'chai', 'karak', 'juice', 'dessert', 'ice cream', 'kunafa', 'takeaway', 'take away', 'dine out', 'eating out',
-      'canteen', 'mess bill', 'sandwich', 'noodles', 'tea stall', '~food', '~tea', '~meal', '~meals', '~treat'] },
+      'canteen', 'mess bill', 'sandwich', 'noodles', 'tea stall', 'travel food', 'food court', 'food services', 'food service', 'food hall', '~food', '~tea', '~meal', '~meals', '~treat'] },
   { id: 'Transport', label: 'Transport', color: '#60a5fa',
     kw: ['uber', 'careem', 'bolt', 'jeeny', 'ola', 'rapido', 'taxi', 'cab', 'fuel', 'petrol', 'diesel', 'gas station', 'aldrees',
       'sasco', 'naft', 'petrol pump', 'metro', 'saptco', 'train', 'haramain', 'flight', 'flights', 'airline', 'flynas', 'flyadeal',

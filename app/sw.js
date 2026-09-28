@@ -1,11 +1,11 @@
 // Offline support: the app shell is cached; everything else goes to the network.
 // The API is never cached. Cache names start with "ss3-" so this app never touches the caches
 // of another app on the same github.io origin.
-const VERSION = 'ss3-1.0.3';
+const VERSION = 'ss3-1.1';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/main.js', './js/core.js', './js/categories.js', './js/parser.js', './js/ledger.js', './js/currency.js', './js/auth.js', './js/config.js',
-  './js/sync.js', './js/ui.js', './js/charts.js', './js/views.js', './js/sheets.js', './js/gate.js', './js/appstate.js',
+  './js/sync.js', './js/ui.js', './js/charts.js', './js/views.js', './js/sheets.js', './js/gate.js', './js/appstate.js', './js/bankmsg.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png'
 ];
 

@@ -89,6 +89,13 @@ function applyUser(u) {
 }
 
 /** Opens the signed-in account. `isNew`: just registered. */
+/** Opens the Add box with text shared from another app, once someone is logged in. */
+function openShared() {
+  let text = null;
+  try { text = sessionStorage.getItem('ss3.share'); sessionStorage.removeItem('ss3.share'); } catch (e) { /* private mode */ }
+  if (text) setTimeout(() => openQuickAdd(text), 450);
+}
+
 function enter(isNew, message) {
   ui.profile = profileFromAccount();
   load(account.key);
@@ -101,6 +108,7 @@ function enter(isNew, message) {
   if (message) toast(message, { tone: 'ok', duration: 6000 });
   else if (isNew) toast('Welcome, ' + ui.profile.name + '. Your account is ready.', { tone: 'ok' });
   setTimeout(() => syncNow(false), 300);
+  openShared();
   refreshUser().then((u) => {                     // name or currency changed on another device
     if (!ui.profile) return;
     applyUser(u);
@@ -204,6 +212,7 @@ function onViewClick(e) {
     case 'cal-today': { const d = fromISO(todayISO()); ui.selected = todayISO(); ui.month = { y: d.getFullYear(), m: d.getMonth() }; ui.scope = 'day'; render(); break; }
     case 'scope': ui.scope = t.getAttribute('data-scope'); render(); break;
     case 'filter': ui.filter = t.getAttribute('data-filter'); render(); break;
+    case 'acct': ui.account = t.getAttribute('data-acct'); render(); break;
     case 'budgets': openBudgets(); break;
     case 'install': install(); break;
     case 'example': openQuickAdd(t.getAttribute('data-text')); break;
@@ -357,7 +366,7 @@ function boot() {
 
   initGate({
     onSignedIn: (isNew, message) => {
-      if (ui.profile && ui.profile.id === account.key) { closeGate(); render(); syncNow(false); if (message) toast(message, { tone: 'ok' }); return; }
+      if (ui.profile && ui.profile.id === account.key) { closeGate(); render(); syncNow(false); openShared(); if (message) toast(message, { tone: 'ok' }); return; }
       enter(isNew, message);
     }
   });
@@ -416,6 +425,14 @@ function boot() {
   });
   window.addEventListener('online', () => { if (ui.profile && signedIn()) syncNow(false); });
   setInterval(() => { if (ui.profile && signedIn() && document.visibilityState === 'visible') syncNow(false); }, 120000);
+
+  // Shared from another app (Android: long-press a bank SMS → Share → Smart Spend).
+  const sp = new URLSearchParams(location.search);
+  const shared = ['share_title', 'share_text', 'share_url'].map((k) => sp.get(k) || '').filter(Boolean).join('\n').trim();
+  if (shared) {
+    history.replaceState(null, '', location.pathname + '#home');
+    try { sessionStorage.setItem('ss3.share', shared.slice(0, 5000)); } catch (e) { /* private mode */ }
+  }
 
   if (loadSession()) enter(false);
   else if (account.email || lastSignedOutWithData()) showGate('relogin');

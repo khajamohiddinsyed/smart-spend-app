@@ -592,3 +592,15 @@ button.set-row:hover { background: var(--surface-2); }
 .hl span { color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
 .ex-chip { justify-self: start; font-size: 13px; color: var(--text-2); padding: 5px 10px; border-radius: 10px; border: 1px dashed var(--border-2); text-align: left; }
 .ex-chip:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- accounts and cards ---------- */
+.acct-chips { margin: 2px 0 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.acct-chips::-webkit-scrollbar { display: none; }
+.acct-chips .chip { flex: none; }
+.acct-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.acct-row:first-of-type { border-top: 0; }
+.acct-row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-row .vl { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.acct-row .vl small { font-size: 12px; }
+.pv-item.dup { opacity: .5; }
+.note.acct { color: var(--text-2); }

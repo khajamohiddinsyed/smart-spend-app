@@ -138,6 +138,8 @@ function cleanRecord(r, now) {
   const title = String(r.title || '').replace(/\s+/g, ' ').trim().slice(0, 120) || category;
   const createdAt = Math.floor(Number(r.createdAt)) || u;
   const rec = { id, title, amount, type, category, date, createdAt, updatedAt: u };
+  const account = String(r.account || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (account) rec.account = account;
   return { id, deleted: 0, u, c: [title, amount.toFixed(2), type, category, date].join('|'), data: JSON.stringify(rec) };
 }
 

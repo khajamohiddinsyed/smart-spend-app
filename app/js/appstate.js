@@ -9,6 +9,7 @@ export const ui = {
   selected: todayISO(),
   scope: 'month',                   // activity: 'day' | 'month' | 'all'
   filter: 'all',                    // 'all' | 'in' | 'out'
+  account: 'all',                   // 'all', an account label, or '' for entries without one
   search: '',
   flash: {},                        // ids to highlight after add/edit
   install: null,                    // deferred install prompt, when the browser offers one
@@ -21,6 +22,7 @@ export function resetScreenState() {
   ui.selected = todayISO();
   ui.scope = 'month';
   ui.filter = 'all';
+  ui.account = 'all';
   ui.search = '';
   ui.flash = {};
 }

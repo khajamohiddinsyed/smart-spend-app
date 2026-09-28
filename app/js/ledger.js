@@ -44,6 +44,22 @@ export function parseLooseDate(v) {
   return dt ? toISO(dt) : null;
 }
 
+/** The account or card an entry came from ("HDFC Card 8432"), or ''. */
+export function cleanAccount(v) { return String(v || '').replace(/\s+/g, ' ').trim().slice(0, 40); }
+export const isCard = (account) => /\bcard\b/i.test(account || '');
+/** Accounts and cards used so far, most used first. */
+export function knownAccounts() {
+  const n = {};
+  state.txns.forEach((t) => { if (t.account) n[t.account] = (n[t.account] || 0) + 1; });
+  return Object.keys(n).sort((a, b) => n[b] - n[a]);
+}
+/** Money in and out per account for a list of entries; entries without one go under ''. */
+export function accountTotals(list) {
+  const m = {};
+  list.forEach((t) => { const k = t.account || ''; const b = m[k] || (m[k] = { account: k, tin: 0, tout: 0, n: 0 }); if (t.type === 'in') b.tin += t.amount; else b.tout += t.amount; b.n++; });
+  return Object.values(m).sort((a, b) => b.tout - a.tout);
+}
+
 export function sanitizeTxn(t) {
   if (!t || typeof t !== 'object') return null;
   const amount = round2(Math.abs(parseFloat(t.amount)));
@@ -58,13 +74,16 @@ export function sanitizeTxn(t) {
   }
   const date = parseLooseDate(t.date) || todayISO();
   const title = String(t.title != null ? t.title : (t.text != null ? t.text : (t.description || ''))).replace(/\s+/g, ' ').trim().slice(0, 120);
-  return {
+  const out = {
     id: String(t.id || uid()).slice(0, 64),
     title: title || catOf(cat).label,
     amount, type, category: cat, date,
     createdAt: Number(t.createdAt) || Date.now(),
     updatedAt: Number(t.updatedAt) || Number(t.createdAt) || Date.now()
   };
+  const account = cleanAccount(t.account);
+  if (account) out.account = account;
+  return out;
 }
 
 export function sanitizeList(arr) {
@@ -143,7 +162,7 @@ export function snapshot() {
   };
 }
 
-function recContent(t) { return [t.title, t.amount, t.type, t.category, t.date].join('|'); }
+function recContent(t) { return [t.title, t.amount, t.type, t.category, t.date, t.account || ''].join('|'); }
 
 // Stamps a wholesale change so sync treats it as the newest edit: new or changed
 // records (all of them when `force`) get updatedAt = now; vanished ones get tombstones.
@@ -174,6 +193,7 @@ export function addItems(items) {
   const added = items.map((it, i) => {
     const t = { id: uid(), title: it.title, amount: it.amount, type: it.type, category: it.category, date: it.date,
       createdAt: stamp + i, updatedAt: stamp + i };
+    if (it.account) t.account = cleanAccount(it.account);
     if (it.forced) learnCategory(state.learned, it.title, it.category);
     state.txns.push(t);
     return t;

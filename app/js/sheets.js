@@ -4,7 +4,7 @@ import { $, esc, plural, fmtDate, fromISO, round2, haptic, todayISO, MONTHS_FULL
 import { CATEGORIES, catOf } from './categories.js';
 import { parseInput } from './parser.js';
 import {
-  state, addItems, updateTxn, deleteTxn, restoreSnapshot, getBudgets, setBudget, readBackup, applyBackup
+  state, addItems, updateTxn, deleteTxn, restoreSnapshot, getBudgets, setBudget, readBackup, applyBackup, cleanAccount, knownAccounts
 } from './ledger.js';
 import { account, updateAccount, changePassword, newRecoveryCode, deleteAccount, MIN_PASSWORD } from './auth.js';
 import { cur, CURRENCIES, currencyInfo, suggestedRate, fmtMoney } from './currency.js';
@@ -35,17 +35,26 @@ function qaPreview() {
   const text = $('#qaText').value;
   if (!text.trim()) { box.innerHTML = ''; qa.items = []; syncQaButton(); return; }
   const res = parseInput(text, qaCtx());
-  qa.items = res.items;
-  let html = '<div class="pv-h">' + (res.items.length ? 'Will add ' + plural(res.items.length, 'entry', 'entries') : 'Add an amount, like “coffee 12”') + '</div>';
+  // A bank message pasted twice, or one already added, would count the same money twice.
+  res.items.forEach((it) => {
+    it.dup = !!it.bank && state.txns.some((t) => t.date === it.date && t.type === it.type && Math.abs(t.amount - it.amount) < 0.005 && (t.account || '') === (it.account || ''));
+  });
+  const seen = {};
+  res.items.forEach((it) => { if (!it.bank) return; const k = [it.date, it.type, it.amount, it.account].join('|'); if (seen[k]) it.dup = true; seen[k] = 1; });
+  qa.items = res.items.filter((it) => !it.dup);
+  const dups = res.items.length - qa.items.length;
+  let html = '<div class="pv-h">' + (qa.items.length ? 'Will add ' + plural(qa.items.length, 'entry', 'entries') : dups ? 'Nothing new to add' : 'Add an amount, like “coffee 12”') + '</div>';
   html += res.items.map((it) => {
     const c = catOf(it.category);
-    const when = dateLabel(it.date) + (it.dated ? ' · from your text' : '');
+    const when = dateLabel(it.date) + (it.bank ? ' · from the message' : it.dated ? ' · from your text' : '');
     const note = it.forced ? 'your pick' : it.catSource === 'learned' ? 'learned' : it.catSource === 'typo' ? it.catHint : '';
-    return '<div class="pv-item">' + catIcon(it.category) +
+    return '<div class="pv-item' + (it.dup ? ' dup' : '') + '">' + catIcon(it.category) +
       '<div style="min-width:0"><div class="pv-t">' + esc(it.title) + '</div><div class="pv-m"><span>' + esc(c.label) + (note ? ' · ' + esc(note) : '') + '</span><span>' + esc(when) + '</span>' +
       (it.currency ? '<span class="note">' + esc(fmtMoney(it.original, it.currency)) + ' converted</span>' : '') +
       (it.foreign ? '<span class="note">' + esc(it.foreign) + ' isn’t converted; recorded as ' + esc(cur.base) + '</span>' : '') +
-      (it.product ? '<span class="note">' + it.product.qty + ' × ' + esc(String(it.product.unit)) + '</span>' : '') + '</div></div>' +
+      (it.product ? '<span class="note">' + it.product.qty + ' × ' + esc(String(it.product.unit)) + '</span>' : '') +
+      (it.account ? '<span class="note acct">' + esc(it.account) + '</span>' : '') +
+      (it.dup ? '<span class="note">Already added · skipped</span>' : '') + '</div></div>' +
       '<div class="pv-a num ' + (it.type === 'in' ? 'in-c' : '') + '">' + (it.type === 'in' ? '+' : '−') + esc(money(it.amount).replace(/^−/, '')) + '<small>' + esc(moneyAlt(it.amount)) + '</small></div></div>';
   }).join('');
   if (res.skipped.length) html += '<div class="pv-skip">No amount found in: ' + res.skipped.map((s) => '“' + esc(s) + '”').join(', ') + '</div>';
@@ -130,6 +139,8 @@ export function openEdit(id) {
     '<label class="field">Date<input class="input" id="edDate" type="date" value="' + t.date + '"></label></div>' +
     '<div class="field">Type<div class="flow" id="edFlow"><button type="button" data-type="in" aria-pressed="' + (type === 'in') + '">' + icon('arrowIn') + 'Money in</button><button type="button" data-type="out" aria-pressed="' + (type === 'out') + '">' + icon('arrowOut') + 'Money out</button></div></div>' +
     '<label class="field">Category<select class="input" id="edCat">' + CATEGORIES.map((c) => '<option value="' + c.id + '"' + (c.id === t.category ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>' +
+    '<label class="field">Account or card <span class="dim">(optional)</span><input class="input" id="edAcct" maxlength="40" list="acctList" value="' + esc(t.account || '') + '" placeholder="e.g. HDFC Card 8432" autocomplete="off">' +
+    '<datalist id="acctList">' + knownAccounts().map((a) => '<option value="' + esc(a) + '">').join('') + '</datalist><span class="help">Include “Card” for a credit card, so it’s counted as card spending.</span></label>' +
     '<div class="msg" id="edMsg" role="alert"></div></form>';
   openSheet({
     title: 'Edit entry', body,
@@ -152,7 +163,9 @@ export function openEdit(id) {
     const badAmt = !(amount > 0 && amount <= 1e9); $('#edAmt').classList.toggle('bad', badAmt); if (badAmt) errs.push('an amount above 0');
     const badDate = !/^\d{4}-\d{2}-\d{2}$/.test(date); $('#edDate').classList.toggle('bad', badDate); if (badDate) errs.push('a date');
     if (errs.length) { $('#edMsg').textContent = 'Please enter ' + errs.join(', ') + '.'; return; }
-    updateTxn(t.id, { title: title.slice(0, 120), amount, date, type, category: $('#edCat').value });
+    const acct = cleanAccount($('#edAcct').value);
+    updateTxn(t.id, { title: title.slice(0, 120), amount, date, type, category: $('#edCat').value, account: acct || undefined });
+    if (!acct) delete t.account;
     ui.flash[t.id] = true;
     closeSheet();
     toast('Saved', { tone: 'ok' });
@@ -336,7 +349,8 @@ export function openTypingHelp() {
     ['Quantity × price', examplePhrases()[3].text, 'Also “2 coffees @ 15” and “3 shirts 40 each”.'],
     ['Words and shorthand', 'rent 2.5k', '2.5k, 1 lakh, “fifty”, Arabic digits (٤٥٠) all work.'],
     ['Categories', 'uber 30', 'Hundreds of shop and brand names (Uber, Netflix, Carrefour, Swiggy…); a typo like “resturant” still matches.'],
-    ['It learns', 'pick a category once', 'Change a category and similar entries get it next time.']
+    ['It learns', 'pick a category once', 'Change a category and similar entries get it next time.'],
+    ['Bank and card messages', 'paste your bank SMS', 'Copy one or several bank or card SMS and paste them. Each becomes an entry with the amount, who it went to, the date and the account or card. Balances are ignored, and a message you already added is skipped.']
   ];
   if (a) rows.splice(5, 0, ['Your second currency', a.symbol.trim() + '500 recharge', 'Converted to ' + b.code + ' at 1 ' + b.code + ' = ' + state.rate + ' ' + a.code + '.']);
   openSheet({

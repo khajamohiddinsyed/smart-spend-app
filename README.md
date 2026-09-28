@@ -42,6 +42,16 @@ Smart Spend is a money tracker you talk to in plain words. No forms, no dropdown
 - 🌍 `groceries ٤٥٠` → Arabic and Persian digits work
 - 💱 `₹500 recharge` on a riyal account → converted to riyals at **your** rate
 
+### 🏦 Paste your bank and card messages
+
+Copy one or several bank or credit-card SMS and paste them into the Add box. On Android you can also long-press the SMS → **Share** → **Smart Spend**.
+
+- 📩 `Your A/c XX5348 debited by Rs. 120.00 on 20/09/26; NOORJAHAN credited…` → **Paid to Noorjahan** −120 · 🏦 IDFC FIRST A/c 5348 · 20 Sep
+- 💳 `INR 431.09 spent on your … Credit Card ending XX9648 at TRAVEL FOOD SERVICES…` → **Travel Food Services** −431.09 · Dining · 💳 IDFC FIRST Card 9648
+- ↩️ `Rs. 2 refunded by PAX INNOVATION… HDFC Bank Credit Card 8432` → **Refund from Pax Innovation** +2
+
+Every entry remembers the account or card it came from. Balances, limits and reference numbers are ignored, and a message you've already added is skipped, so pasting the same SMS twice never counts it twice. Insights shows spending **by account**, and how much went on credit cards, which is borrowed money you'll pay back.
+
 **Also:**
 - 🗓️ **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09.
 - ↕️ **In or out, worked out for you:** salary, refund, cashback and received mean money in. Spent, paid and bought mean money out.

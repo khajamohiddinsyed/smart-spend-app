@@ -1,5 +1,6 @@
 import { todayDate, makeDate, monthIndex, weekdayIndex, toISO, round2, MAX_AMOUNT } from './core.js';
 import { cur as CUR, currencyTokens } from './currency.js';
+import { isBankMessage, splitMessages, parseBankMessage } from './bankmsg.js';
 import { catOf, detectCategory, detectDirection } from './categories.js';
 
 // Free-text parser: splitting, dates, amounts (Arabic digits, words, currencies, qty x price),
@@ -373,7 +374,33 @@ var SPENT_RE = /\b(?:spent|spend|paid|pay|bought|buy|purchased|cost)\b/i;
 var VERB_START = /^\s*(?:(?:i|we)\s+|i'?ve\s+|we'?ve\s+)?(?:(?:have|had)\s+)?(?:also\s+)?(?:spent|spend|paid|pay|bought|buy|purchased|got|received|gave|sent)\b/i;
 var BUDGET_PHRASE = /\b(?:(?:with|in|on|under)\s+)?(?:a|our|my|the)?\s*budget(?:ed)?\s+(?:of\s+)?[\d,.]+k?\b\s*/gi;
 
+function bankItem(msg, ctx) {
+  var b = parseBankMessage(msg, ctx.anchor, ctx.rate);
+  if (!b) return null;
+  var det = detectCategory(b.merchant || b.title, ctx.learned);
+  var category = ctx.forced || (b.type === 'in' && !b.refund && det.id === 'General' ? 'General' : det.id);
+  return {
+    title: b.title, amount: b.amount, currency: b.currency, foreign: b.foreign, original: b.original, product: null,
+    type: b.type, category: category, forced: !!ctx.forced, catSource: ctx.forced ? 'forced' : det.source, catHint: det.hint,
+    date: b.date, dated: true, inherited: false, account: b.account, bank: true
+  };
+}
+
+/** Free text, bank/card SMS, or both pasted together. */
 function parseInput(raw, ctx) {
+  var msgs = splitMessages(normalizeInput(raw));
+  if (!msgs.some(isBankMessage)) return parseText(raw, ctx);
+  var out = { items: [], skipped: [], budgets: [] };
+  msgs.forEach(function (m) {
+    var it = isBankMessage(m) ? bankItem(m, ctx) : null;
+    if (it) { out.items.push(it); return; }
+    var r = parseText(m, ctx);
+    out.items = out.items.concat(r.items); out.skipped = out.skipped.concat(r.skipped); out.budgets = out.budgets.concat(r.budgets);
+  });
+  return out;
+}
+
+function parseText(raw, ctx) {
   var parts = normalizeInput(raw).replace(AMOUNT_PHRASE_SPLIT, '$1, ').split(SPLIT_RE);
   var segs = [], delims = [];
   for (var i = 0; i < parts.length; i++) {

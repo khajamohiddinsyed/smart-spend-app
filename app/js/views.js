@@ -5,7 +5,7 @@ import {
   monthKey, round2, APP_VERSION, store
 } from './core.js';
 import { CATEGORIES, catOf } from './categories.js';
-import { state, inMonth, totals, categorySpend, monthlySeries, cumulativeSpend, sortedTxns, dayAggregates, getBudgets } from './ledger.js';
+import { state, inMonth, totals, categorySpend, monthlySeries, cumulativeSpend, sortedTxns, dayAggregates, getBudgets, knownAccounts, accountTotals, isCard } from './ledger.js';
 import { describe } from './sync.js';
 import { ui } from './appstate.js';
 import { cur, currencyInfo, fmtMoney } from './currency.js';
@@ -22,6 +22,8 @@ function monthSwitch() {
     '<span>' + MONTHS[m] + ' ' + y + '</span>' +
     '<button data-act="month-next" aria-label="Next month"' + (isThisMonth(y, m) ? ' disabled style="opacity:.35"' : '') + '>' + icon('next') + '</button></div>';
 }
+
+const cardSpend = (list) => list.reduce((s, t) => s + (t.type === 'out' && isCard(t.account) ? t.amount : 0), 0);
 
 function curToggle() {
   if (!cur.alt) return '';
@@ -59,7 +61,7 @@ export function rowHtml(t) {
     '<div class="row-actions"><button data-act="row-del" data-id="' + esc(t.id) + '" aria-label="Delete ' + esc(t.title) + '">' + icon('trash') + 'Delete</button></div>' +
     '<button class="row ' + t.type + (ui.flash[t.id] ? ' flash' : '') + '" data-act="row-open" data-id="' + esc(t.id) + '">' +
     catIcon(t.category) +
-    '<span class="row-main"><span class="row-title">' + esc(t.title) + '</span><span class="row-meta">' + esc(c.label) + ' · ' + esc(fmtDayHeading(t.date)) + '</span></span>' +
+    '<span class="row-main"><span class="row-title">' + esc(t.title) + '</span><span class="row-meta">' + esc(c.label) + ' · ' + esc(fmtDayHeading(t.date)) + (t.account ? ' · ' + (isCard(t.account) ? '💳 ' : '') + esc(t.account) : '') + '</span></span>' +
     '<span class="row-amt"><span class="p num">' + esc(signed(t.amount, t.type)) + '</span><span class="s num">' + esc(moneyAlt(t.amount)) + '</span></span>' +
     '</button></div>';
 }
@@ -113,7 +115,8 @@ export function homeView() {
     '<div><span class="k"><i style="background:var(--in)"></i>Money in</span><span class="v num">' + esc(money(t.tin)) + '</span></div>' +
     '<div><span class="k"><i style="background:var(--out)"></i>Money out</span><span class="v num">' + esc(money(t.tout)) + '</span></div></div>' +
     '<div class="hero-note">' + (rate == null ? (t.tout ? 'No money in recorded this month yet.' : 'Nothing recorded this month yet.') :
-      rate >= 0 ? 'You kept <b>' + rate + '%</b> of what came in.' : 'Spending is <b>' + Math.abs(rate) + '%</b> above what came in.') + '</div>' +
+      rate >= 0 ? 'You kept <b>' + rate + '%</b> of what came in.' : 'Spending is <b>' + Math.abs(rate) + '%</b> above what came in.') +
+      (cardSpend(list) ? ' 💳 ' + esc(money(cardSpend(list))) + ' of the spending was on credit cards.' : '') + '</div>' +
     '</section>';
 
   html += installBanner();
@@ -162,7 +165,8 @@ function scopedTxns() {
   const { y, m } = ui.month;
   let list = ui.scope === 'all' ? state.txns : ui.scope === 'day' ? state.txns.filter((t) => t.date === ui.selected) : inMonth(state.txns, y, m);
   const q = ui.search.trim().toLowerCase();
-  if (q) list = state.txns.filter((t) => (t.title + ' ' + catOf(t.category).label + ' ' + t.amount).toLowerCase().indexOf(q) !== -1);
+  if (q) list = state.txns.filter((t) => (t.title + ' ' + catOf(t.category).label + ' ' + t.amount + ' ' + (t.account || '')).toLowerCase().indexOf(q) !== -1);
+  if (ui.account !== 'all') list = list.filter((t) => (t.account || '') === ui.account);
   return list;
 }
 
@@ -186,6 +190,14 @@ export function activityListHtml() {
 export function activityCounts() {
   const base = scopedTxns();
   return { all: base.length, in: base.filter((t) => t.type === 'in').length, out: base.filter((t) => t.type === 'out').length };
+}
+
+function accountChips() {
+  const accts = knownAccounts();
+  if (!accts.length) return '';
+  const chip = (k, label) => '<button class="chip" data-act="acct" data-acct="' + esc(k) + '" aria-pressed="' + (ui.account === k) + '">' + label + '</button>';
+  return '<div class="chips acct-chips" role="group" aria-label="Account">' + chip('all', 'All accounts') +
+    accts.map((a) => chip(a, (isCard(a) ? '💳 ' : '🏦 ') + esc(a))).join('') + chip('', 'Cash &amp; other') + '</div>';
 }
 
 function calendarHtml() {
@@ -223,6 +235,7 @@ export function activityView() {
     '</div></div></section>' +
     '<div class="seg" role="group" aria-label="Filter" id="actFilter">' +
     [['all', 'All'], ['in', 'In'], ['out', 'Out']].map(([k, l]) => '<button data-act="filter" data-filter="' + k + '" aria-pressed="' + (ui.filter === k) + '">' + l + ' <span class="c">' + c[k] + '</span></button>').join('') + '</div>' +
+    accountChips() +
     '<div class="list" id="actList">' + activityListHtml() + '</div>';
   return { html };
 }
@@ -284,7 +297,13 @@ export function insightsView() {
         '<span class="state" style="grid-column:1/-1">' + st + '</span></div>';
     }).join('') : '<p class="muted" style="margin:0">Set a monthly limit for any category and you’ll get a warning at 80% and when you go over.</p>') + '</section>';
 
-  html += '<div class="grid-2"><div class="stack">' + inout + pace + '</div><div class="stack">' + where + bud + '</div></div>';
+  const accts = accountTotals(inMonth(state.txns, y, m)).filter((a) => a.tout || a.tin);
+  const cardOut = accts.filter((a) => isCard(a.account)).reduce((s, a) => s + a.tout, 0);
+  const byAcct = accts.some((a) => a.account) ? '<section class="card"><div class="card-h"><div><h2>By account</h2><div class="sub">Where the money moved in ' + esc(MONTHS_FULL[m]) + '</div></div></div>' +
+    accts.map((a) => '<div class="acct-row"><span class="nm">' + (a.account ? (isCard(a.account) ? '💳 ' : '🏦 ') + esc(a.account) : '💵 Cash &amp; other') + '</span>' +
+      '<span class="vl num">' + (a.tout ? '<b>−' + esc(money(a.tout)) + '</b>' : '') + (a.tin ? '<small class="in-c">+' + esc(money(a.tin)) + '</small>' : '') + '</span></div>').join('') +
+    (cardOut ? '<p class="help" style="margin:12px 0 0">💳 ' + esc(money(cardOut)) + ' of this month’s spending was on credit cards. That’s borrowed money you pay back when the card bill comes.</p>' : '') + '</section>' : '';
+  html += '<div class="grid-2"><div class="stack">' + inout + pace + '</div><div class="stack">' + where + byAcct + bud + '</div></div>';
 
   const after = () => {
     const code = showCode(), fmt = (v) => fmtMoney(Math.round(v), code).replace(/\.0+$/, '');

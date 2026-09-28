@@ -26,6 +26,7 @@ function localRecords() {
   state.txns.forEach((t) => {
     out[t.id] = { id: t.id, title: t.title, amount: t.amount, type: t.type, category: t.category, date: t.date,
       createdAt: t.createdAt, updatedAt: t.updatedAt || t.createdAt, deleted: false };
+    if (t.account) out[t.id].account = t.account;
   });
   Object.keys(state.deleted).forEach((id) => { if (!out[id]) out[id] = { id, deleted: true, updatedAt: state.deleted[id] }; });
   return out;
