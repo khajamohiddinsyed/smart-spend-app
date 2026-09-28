@@ -1,6 +1,6 @@
 # Smart Spend API
 
-Base URL: `https://smart-spend-api.<subdomain>.workers.dev`. JSON in and out. Authenticated calls send `Authorization: Bearer <token>`. Only the origins in `ALLOWED_ORIGINS` may call it from a browser.
+Base URL: `https://smart-spend-api.smart-spend-api.workers.dev`. JSON in and out. Authenticated calls send `Authorization: Bearer <token>`. Only the origins in `ALLOWED_ORIGINS` may call it from a browser.
 
 Errors are `{ "error": "<code>", "message": "<text to show>" }` with a 4xx/5xx status. A `401` with `signed_out` means the session ended; the app asks the person to log in again and keeps their local entries.
 

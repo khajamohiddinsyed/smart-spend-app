@@ -10,5 +10,5 @@ ALLOWED_ORIGINS = "https://khajamohiddinsyed.github.io,http://localhost:8797,htt
 [[d1_databases]]
 binding = "DB"
 database_name = "smart-spend"
-database_id = "00000000-0000-0000-0000-000000000000"   # replaced after `wrangler d1 create smart-spend`
+database_id = "d3e2c258-cab5-4133-8d48-8fe4f8f3bf77"
 migrations_dir = "migrations"
