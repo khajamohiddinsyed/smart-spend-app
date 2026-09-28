@@ -349,9 +349,13 @@ async function sync(req, env, u) {
     stmts.push(env.DB.prepare('UPDATE users SET rate = ?2, rate_updated_at = ?3 WHERE id = ?1 AND alt_currency IS NOT NULL AND ?3 > rate_updated_at').bind(u.id, rate, rateAt));
   }
   const pushedIds = JSON.stringify(rows.map((r) => r.id));
+  // Two index lookups, not one OR: with "seq > ? OR id IN (…)" SQLite reads every record the
+  // person has on every sync. CROSS JOIN makes it look each sent id up by primary key.
   stmts.push(env.DB.prepare(
-    `SELECT id, data, deleted, updated_at, seq FROM records
-     WHERE user_id = ?1 AND (seq > ?2 OR id IN (SELECT value FROM json_each(?3)))
+    `SELECT id, data, deleted, updated_at, seq FROM records WHERE user_id = ?1 AND seq > ?2
+     UNION
+     SELECT r.id, r.data, r.deleted, r.updated_at, r.seq FROM json_each(?3) j CROSS JOIN records r
+     WHERE r.user_id = ?1 AND r.id = j.value
      ORDER BY seq, id LIMIT ?4`
   ).bind(u.id, since, pushedIds, PAGE + 1));
   stmts.push(env.DB.prepare('SELECT seq, rate, rate_updated_at, currency, alt_currency, name FROM users WHERE id = ?1').bind(u.id));
