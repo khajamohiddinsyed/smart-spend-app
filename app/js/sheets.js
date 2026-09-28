@@ -49,6 +49,7 @@ function qaPreview() {
       '<div class="pv-a num ' + (it.type === 'in' ? 'in-c' : '') + '">' + (it.type === 'in' ? '+' : '−') + esc(money(it.amount).replace(/^−/, '')) + '<small>' + esc(moneyAlt(it.amount)) + '</small></div></div>';
   }).join('');
   if (res.skipped.length) html += '<div class="pv-skip">No amount found in: ' + res.skipped.map((s) => '“' + esc(s) + '”').join(', ') + '</div>';
+  if (res.budgets && res.budgets.length) html += '<div class="pv-skip">Not added, because a budget isn’t money spent: ' + res.budgets.map((s) => '“' + esc(s) + '”').join(', ') + '. To set one, go to Insights → Budgets.</div>';
   box.innerHTML = html;
   syncQaButton();
 }

@@ -28,7 +28,7 @@ var CATEGORIES = [
       'sasco', 'naft', 'petrol pump', 'metro', 'saptco', 'train', 'haramain', 'flight', 'flights', 'airline', 'flynas', 'flyadeal',
       'saudia', 'indigo', 'air india', 'emirates', 'air arabia', 'airport', 'parking', 'toll', 'car wash', 'car service', 'oil change',
       'tyre', 'tire', 'tyres', 'tires', 'mechanic', 'car rental', 'rent a car', 'yelo', 'theeb', 'traffic fine', 'saher',
-      'car insurance', 'boarding pass', 'commute', '~gas', '~fare', '~bus', '~ride'] },
+      'car insurance', 'boarding pass', 'commute', 'travel expenses', 'travel expense', 'travelling', 'traveling', '~travel', '~gas', '~fare', '~bus', '~ride'] },
   { id: 'Utilities', label: 'Utilities', color: '#a78bfa',
     kw: ['electricity', 'electric', 'electricity bill', 'water bill', 'nwc', 'internet', 'wifi', 'wi fi', 'broadband', 'fiber', 'fibre',
       'stc', 'mobily', 'zain', 'virgin mobile', 'lebara', 'salam mobile', 'jawwy', 'airtel', 'jio', 'vodafone', 'bsnl', 'recharge',

@@ -311,7 +311,7 @@ function cleanTitle(t) {
 // The title is what was bought or received: the amount (and its currency) and filler
 // verbs like "spent" or "paid" are left out, so "juice 15" is "Juice" and
 // "spent 40 on fuel" is "Fuel".
-var FILLER_LEAD = /^\s*(?:i\s+)?(?:spent|spend|paid|pay|bought|buy|purchased)\b(?:\s+(?:on|for|at))?\s*/i;
+var FILLER_LEAD = /^\s*(?:(?:i|we)\s+|i'?ve\s+|we'?ve\s+)?(?:(?:have|had)\s+)?(?:also\s+)?(?:spent|spend|paid|pay|bought|buy|purchased)\b(?:\s+(?:on|for|at))*\s*/i;
 var FILLER_TAIL = /\s+(?:spent|paid)\s*$/i;
 function itemName(text, amt) {
   if (!amt || !amt.spans) return text;
@@ -319,8 +319,8 @@ function itemName(text, amt) {
   amt.spans.slice().sort(function (a, b) { return b[0] - a[0]; }).forEach(function (sp) {
     out = out.slice(0, sp[0]) + ' ' + out.slice(sp[1]);
   });
-  out = out.replace(/\s+/g, ' ').trim();
-  var stripped = out.replace(FILLER_LEAD, '').replace(FILLER_TAIL, '').replace(/^(?:for|on|at|of|to)\s+/i, '').trim();
+  out = out.replace(/\s+/g, ' ').trim().replace(/^(?:[,;:.\-–—+&*•·\s]|and\b|then\b|also\b|plus\b)+/i, '').trim();
+  var stripped = out.replace(FILLER_LEAD, '').replace(FILLER_TAIL, '').replace(/^(?:(?:for|on|at|of|to)\s+)+/i, '').replace(/^(?:my|our)\s+/i, '').trim();
   return /[a-z]/i.test(stripped) ? stripped : out;
 }
 
@@ -361,8 +361,16 @@ function analyzeSegment(seg, ctx) {
 // separators) and joining words: and, &, then, plus, also, after that, +.
 var SPLIT_RE = /(\r?\n|;|•|,(?!\d)|\s+(?:and|&|then|plus|also|after\s+that|\+)\s+)/i;
 
+// "3000 on travel 2000 for personal use": two amounts, each with its own "on/for …" phrase,
+// written without a comma. Split between them so each gets its own entry.
+var AMOUNT_PHRASE_SPLIT = /(\d[\d,]*(?:\.\d+)?k?\s+(?:on|for)\s+[a-z](?:(?!\b(?:and|then|plus)\b)[^\d\n,;])*?)\s+(?=\d[\d,]*(?:\.\d+)?k?\s+(?:on|for)\s+[a-z])/gi;
+// A budget someone mentions ("with a budget of 10000") is not money spent.
+var BUDGET_RE = /\bbudget(?:ed)?\b/i;
+var SPENT_RE = /\b(?:spent|spend|paid|pay|bought|buy|purchased|cost)\b/i;
+var BUDGET_PHRASE = /\b(?:(?:with|in|on|under)\s+)?(?:a|our|my|the)?\s*budget(?:ed)?\s+(?:of\s+)?[\d,.]+k?\b\s*/gi;
+
 function parseInput(raw, ctx) {
-  var parts = normalizeInput(raw).split(SPLIT_RE);
+  var parts = normalizeInput(raw).replace(AMOUNT_PHRASE_SPLIT, '$1, ').split(SPLIT_RE);
   var segs = [], delims = [];
   for (var i = 0; i < parts.length; i++) {
     if (i % 2 === 0) segs.push(parts[i] || ''); else delims.push(parts[i]);
@@ -400,16 +408,21 @@ function parseInput(raw, ctx) {
   }
 
   // An explicit date carries forward to later undated items on the same line.
-  var items = [], skipped = [], ctxDate = null, ctxLine = -1;
+  var items = [], skipped = [], budgets = [], ctxDate = null, ctxLine = -1;
   groups.forEach(function (g) {
     if (g.line !== ctxLine) { ctxDate = null; ctxLine = g.line; }
+    if (BUDGET_RE.test(g.text) && !SPENT_RE.test(g.text)) { budgets.push(g.text.trim()); return; }
+    if (BUDGET_RE.test(g.text)) {                                   // "with a budget of 5000 we spent 4000 on food"
+      var m = g.text.match(BUDGET_PHRASE);
+      if (m) { budgets.push(m[0].trim()); g.text = g.text.replace(BUDGET_PHRASE, ' '); }
+    }
     var a = analyzeSegment(g.text, ctx);
     if (!(a.amount > 0)) { skipped.push(g.text.trim()); return; }
     if (a.dated) ctxDate = a.date;
     else if (ctxDate) { a.date = ctxDate; a.inherited = true; }
     items.push(a);
   });
-  return { items: items, skipped: skipped };
+  return { items: items, skipped: skipped, budgets: budgets };
 }
 
 export { parseInput, analyzeSegment, normalizeInput, extractDate, extractAmount, cleanTitle };
