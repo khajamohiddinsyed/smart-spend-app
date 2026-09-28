@@ -190,6 +190,8 @@ function extractDate(text, ctx) {
 }
 
 /* ---------- Amounts ---------- */
+// Numbers that count people, time or weight, never money.
+var COUNT_AFTER = /^\s*(?:friends?|people|persons?|guys|members|kids|children|adults|nights?|days?|hours?|hrs?|mins?|minutes?|weeks?|months?|years?|yrs?|times|kgs?|kms?|litres?|liters?|ltrs?|of\s+(?:us|them))\b/i;
 var curRe = null;
 function currencyRes() {
   var t = currencyTokens();
@@ -220,6 +222,7 @@ function extractAmount(text, rate) {
     if (/[\d:]$/.test(before) || /^\s?%/.test(after) || /^:\d/.test(after)) continue;       // 10:30, 20%
     if (/^\s?(?:am|pm|st|nd|rd|th|x\d)\b/i.test(after)) continue;                           // 5pm, 2nd
     if (/^[a-z]/i.test(after) && !C.unit.test(after)) continue;                                // 5g, 15pro
+    if (COUNT_AFTER.test(after)) continue;                                                     // 4 friends, 3 nights, 2 kg
     var v = parseFloat(m[1].replace(/,/g, '') + (m[2] || ''));
     if (m[3]) v *= SCALE_SUFFIX[m[3].trim().toLowerCase()] || 1;
     if (!(v > 0)) continue;
@@ -367,6 +370,7 @@ var AMOUNT_PHRASE_SPLIT = /(\d[\d,]*(?:\.\d+)?k?\s+(?:on|for)\s+[a-z](?:(?!\b(?:
 // A budget someone mentions ("with a budget of 10000") is not money spent.
 var BUDGET_RE = /\bbudget(?:ed)?\b/i;
 var SPENT_RE = /\b(?:spent|spend|paid|pay|bought|buy|purchased|cost)\b/i;
+var VERB_START = /^\s*(?:(?:i|we)\s+|i'?ve\s+|we'?ve\s+)?(?:(?:have|had)\s+)?(?:also\s+)?(?:spent|spend|paid|pay|bought|buy|purchased|got|received|gave|sent)\b/i;
 var BUDGET_PHRASE = /\b(?:(?:with|in|on|under)\s+)?(?:a|our|my|the)?\s*budget(?:ed)?\s+(?:of\s+)?[\d,.]+k?\b\s*/gi;
 
 function parseInput(raw, ctx) {
@@ -379,7 +383,7 @@ function parseInput(raw, ctx) {
   // Fragments without an amount are glued onto the next fragment
   // ("Marks and Spencer 200"), or onto the previous one when trailing
   // ("spent 40 on fuel and snacks", "paid 90, on 24th sep").
-  var groups = [], carry = '', carryLead = '', line = 0;
+  var groups = [], carry = '', carryLead = '', line = 0, skipped = [];
   for (var s = 0; s < segs.length; s++) {
     if (s > 0 && /\n/.test(delims[s - 1])) {
       if (carry.trim()) {
@@ -389,6 +393,9 @@ function parseInput(raw, ctx) {
       carry = ''; line++;
     }
     var piece = segs[s];
+    // "Went on a trip with 4 friends, spent 5000 on food": an opening phrase without an amount,
+    // followed by one that starts with spent/paid/got, is context, not part of the next title.
+    if (carry && VERB_START.test(piece)) { skipped.push(carry.trim()); carry = ''; }
     var text = carry ? carry + (delims[s - 1] || ' ') + piece : piece;
     if (!text.trim()) { carry = ''; continue; }
     if (analyzeSegment(text, ctx).amount > 0) {
@@ -408,7 +415,7 @@ function parseInput(raw, ctx) {
   }
 
   // An explicit date carries forward to later undated items on the same line.
-  var items = [], skipped = [], budgets = [], ctxDate = null, ctxLine = -1;
+  var items = [], budgets = [], ctxDate = null, ctxLine = -1;
   groups.forEach(function (g) {
     if (g.line !== ctxLine) { ctxDate = null; ctxLine = g.line; }
     if (BUDGET_RE.test(g.text) && !SPENT_RE.test(g.text)) { budgets.push(g.text.trim()); return; }
