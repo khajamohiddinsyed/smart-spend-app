@@ -1,50 +1,60 @@
 # Smart Spend
 
-Type what you spent or received in plain words ("spent 40 on fuel and 18 coffee") and Smart Spend turns it into entries, sorts them into categories, and shows where the money went. Free accounts, any of 27 currencies, works offline, syncs across devices.
+**Know where your money goes. Just type it.**
 
-**Live:** https://khajamohiddinsyed.github.io/smart-spend-app/
+Smart Spend is a spending and income tracker you talk to in plain words. Instead of filling in forms, you write what happened, like "spent 40 on fuel and 18 coffee yesterday", and it becomes tidy entries with the right amounts, categories and dates.
 
-## What's here
+**Use it:** https://khajamohiddinsyed.github.io/smart-spend-app/, free, in any browser. Add it to your home screen on Android or iPhone and it opens like an app.
 
-| Folder | What it is |
+## How it works
+
+1. **Create an account** with your email and a password, and pick your currency. You can also pick a second currency to see amounts in, for example earning in riyals and thinking in rupees.
+2. **Tell it what happened.** Tap **+** and type the way you'd text a friend. Several things in one message are fine.
+3. **Check the preview.** Before anything is saved you see each entry: the item, the amount, money in or out, the category and the date. Tap a category to change it.
+4. **Add.** The entries are saved on your device straight away and synced to your account, so they appear on every phone or computer you log in on.
+
+## What makes it different
+
+### It understands how people actually write
+
+| You type | You get |
 |---|---|
-| `app/` | The web app: plain ES modules, no build step, installable (PWA), works offline. Served by GitHub Pages. |
-| `api/` | The server: one Cloudflare Worker with a D1 (SQLite) database. Accounts, sessions and sync. |
-| `index.html` | The landing page. |
-| `docs/API.md` | The API and the sync rules. |
+| `juice 15` | **Juice**, 15. The amount goes in the amount and the item name stays clean. |
+| `spent 40 on fuel and 18 coffee yesterday` | Two entries, **Fuel** 40 and **Coffee** 18, both dated yesterday |
+| `salary 14,500 credited` | Money **in**, under Salary |
+| `on 24th sep: taxi 30, lunch 45` | Both entries on 24 September |
+| `3 coffee x 12` · `2 coffees @ 15` · `3 shirts 40 each` | Quantity × price, worked out: 36, 30, 120 |
+| `rent 2.5k` · `petrol 2 lakh` · `fifty for parking` | 2,500 · 200,000 · 50 |
+| `groceries ٤٥٠` | Arabic and Persian digits work |
+| `₹500 recharge` (on a riyal account with rupees as the second currency) | Converted to riyals at your own rate |
 
-## How it fits together
+- **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09, sep 24 2026. A date at the start of a line carries to everything after it.
+- **Money in or out** is worked out from the words: salary, received, refund, cashback and credited mean money in; spent, paid and bought mean money out.
+- **Categories** come from hundreds of shop, brand and everyday words (Uber, Netflix, Carrefour, Swiggy, pharmacy, rent…). A typo like "resturant" still matches.
+- **It learns.** Change a category once and similar entries get it next time.
+- **Currencies:** 27 to choose from. The symbols and words people use are understood (₹, rs, rupees, $, dirham, riyals, €…), and "rs" means Pakistani rupees on a PKR account.
 
-- **Accounts.** Email and password. The browser stretches the password (PBKDF2-SHA256, 200,000 rounds) and sends only the result; the Worker stores an HMAC of that with its own salt. At sign-up each person gets a recovery code, the only way to reset a password (there's no email service).
-- **Offline first.** Entries are saved on the device immediately, then sent to the Worker. Each accepted change gets a per-account change number, so a device only downloads what it hasn't seen. When the same entry changed on two devices, the latest edit wins.
-- **Currencies.** Each account has a main currency (amounts are stored in it) and an optional second one with its own rate. The parser reads symbols and words for both (₹, rs, rupees, $, dirham, riyals…).
+### It shows you the month at a glance
 
-## Run it locally
+- The balance for the month, money in and out, and how much of what came in you kept.
+- A 6-month chart of money in and out, and your spending pace against last month.
+- Where the money went, by category.
+- Monthly budgets per category, with a warning at 80% and when you go over.
+- A calendar with a dot for each day that has entries, plus search and filters.
 
-```bash
-cd api && npm install && npm run db:local && npm run dev
-```
+### It works everywhere, even offline
 
-In another terminal, serve the site on port 8797 (the API allows that origin):
+- **Offline first:** entries are saved on the device the moment you add them and sync when there's a connection. Nothing is lost on a flight or in a basement.
+- **On every device:** log in on your phone and your computer and you see the same entries. If the same entry was changed in two places, the latest edit wins.
+- **Installable:** add it to the home screen and it opens full screen from its own icon, like any app.
 
-```bash
-python3 -m http.server 8797 --bind 127.0.0.1
-```
+### Your account stays yours
 
-Open http://127.0.0.1:8797/app/. On localhost the app talks to the local Worker at http://127.0.0.1:8787. API tests: `cd api && npm test` (with `npm run dev` running).
+- **Your password never leaves your device.** It's scrambled in the browser before anything is sent, so the server only ever sees the scrambled form.
+- **A recovery code** is shown when you sign up. It's the only way to reset a forgotten password, so keep it safe. You can make a new one in Settings.
+- **Changing your password** signs out your other devices.
+- **Your data:** save a backup file of your entries at any time, restore from one, or delete your account and every entry for good.
 
-## Deploy
+## Under the hood
 
-```bash
-cd api
-npx wrangler login
-npx wrangler d1 create smart-spend        # put the database_id it prints into wrangler.toml
-npm run db:remote
-npm run deploy                            # prints https://smart-spend-api.<subdomain>.workers.dev
-```
-
-Put that URL in `app/js/config.js` and in the `connect-src` of `app/index.html`, bump `VERSION` in `app/sw.js`, and push. GitHub Pages serves the rest.
-
-## Limits on Cloudflare's free plan
-
-100,000 Worker requests a day (an active person makes roughly 20–40), 5 GB of D1 storage, and 100,000 database writes a day. That's a few thousand people using it every day. Beyond that, the Workers Paid plan ($5/month) raises all of these.
+The app is plain JavaScript with no framework, served by GitHub Pages. Accounts and sync run on a Cloudflare Worker with a D1 (SQLite) database. The sync rules and endpoints are described in [docs/API.md](docs/API.md).

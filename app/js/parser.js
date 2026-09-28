@@ -226,14 +226,30 @@ function extractAmount(text, rate) {
     var mb = C.before.exec(before), ma = C.after.exec(after);
     var cur = mb ? C.codeOf(mb[1]) : ma ? C.codeOf(ma[1]) : (/^\s*\/-/.test(after) ? 'INR' : null);
     var sign = /(?:^|\s)\+\s*$/.test(before) ? '+' : (/(?:^|\s)[-−]\s*$/.test(before) ? '-' : '');
-    cands.push({ value: v, cur: cur, sign: sign, index: m.index });
+    // Where the amount sits in the text, with its currency word or symbol, so the title can leave it out.
+    var start = m.index, end = m.index + m[0].length;
+    if (mb) start = before.length - (mb[0].length - mb[0].replace(/\s+$/, '').length) - mb[1].length;
+    var slash = /^\s*\/-/.exec(after);
+    if (ma) end += ma[0].length; else if (slash) end += slash[0].length;
+    var sg = /[+−-]\s*$/.exec(text.slice(0, start));
+    if (sg) start -= sg[0].length;
+    cands.push({ value: v, cur: cur, sign: sign, index: m.index, span: [start, end] });
   }
 
-  var product = null;
-  var px = /(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)(?![\d.])/i.exec(text)
-    || /\b(\d{1,3})\s+[a-z][a-z\s]{0,30}?@\s*(\d+(?:\.\d+)?)/i.exec(text)
-    || C.each.exec(text);
+  // Quantity × price: "3 x 12", "3 coffee x 12", "2 coffees @ 15", "3 shirts 40 each". Spans are the number
+  // parts to leave out of the title ("Coffees", "Shirts").
+  var product = null, pspans = null, px;
+  if ((px = /(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)(?![\d.])/i.exec(text))) {
+    pspans = [[px.index, px.index + px[0].length]];
+  } else if ((px = /\b(\d{1,3})\s+[a-z][a-z\s]{0,30}?\s(?:x|×|\*)\s*(\d+(?:\.\d+)?)(?![\d.])/i.exec(text))) {   // 3 coffee x 12
+    pspans = [[px.index, px.index + px[1].length], [px.index + px[0].search(/\s(?:x|×|\*)\s*\d/i), px.index + px[0].length]];
+  } else if ((px = /\b(\d{1,3})\s+[a-z][a-z\s]{0,30}?@\s*(\d+(?:\.\d+)?)/i.exec(text))) {
+    pspans = [[px.index, px.index + px[1].length], [px.index + px[0].lastIndexOf('@'), px.index + px[0].length]];
+  } else if ((px = C.each.exec(text))) {
+    pspans = [[px.index, px.index + px[1].length], [px.index + px[0].lastIndexOf(px[2]), px.index + px[0].length]];
+  }
   if (px && +px[1] > 0 && +px[1] <= 1000 && +px[2] > 0) product = { value: +px[1] * +px[2], qty: +px[1], unit: +px[2] };
+  else pspans = null;
   if (!cands.length && !product) return null;
   if (!cands.length) cands.push({ value: product.value, cur: null, sign: '', index: 0 });
 
@@ -252,7 +268,8 @@ function extractAmount(text, rate) {
     foreign: !!cur && cur !== CUR.base && !inAlt ? cur : null,
     original: round2(raw),
     sign: (cands.filter(function (c) { return c.sign; })[0] || {}).sign || '',
-    product: product
+    product: product,
+    spans: product ? pspans : [best.span]
   };
 }
 
@@ -291,6 +308,22 @@ function cleanTitle(t) {
   return titleCase(t).slice(0, 120);
 }
 
+// The title is what was bought or received: the amount (and its currency) and filler
+// verbs like "spent" or "paid" are left out, so "juice 15" is "Juice" and
+// "spent 40 on fuel" is "Fuel".
+var FILLER_LEAD = /^\s*(?:i\s+)?(?:spent|spend|paid|pay|bought|buy|purchased)\b(?:\s+(?:on|for|at))?\s*/i;
+var FILLER_TAIL = /\s+(?:spent|paid)\s*$/i;
+function itemName(text, amt) {
+  if (!amt || !amt.spans) return text;
+  var out = text;
+  amt.spans.slice().sort(function (a, b) { return b[0] - a[0]; }).forEach(function (sp) {
+    out = out.slice(0, sp[0]) + ' ' + out.slice(sp[1]);
+  });
+  out = out.replace(/\s+/g, ' ').trim();
+  var stripped = out.replace(FILLER_LEAD, '').replace(FILLER_TAIL, '').replace(/^(?:for|on|at|of|to)\s+/i, '').trim();
+  return /[a-z]/i.test(stripped) ? stripped : out;
+}
+
 function analyzeSegment(seg, ctx) {
   var text = seg.replace(/\s+/g, ' ').trim()
     .replace(/^(?:[-*•·▪►]\s+|\d{1,2}[.)]\s+(?=[a-z]))/i, '');        // bullets and "1." list markers
@@ -305,7 +338,7 @@ function analyzeSegment(seg, ctx) {
   var det = detectCategory(text, ctx.learned);
   var category = ctx.forced || det.id;
   var type = detectDirection(text, category, amt ? amt.sign : '');
-  var title = cleanTitle(text) || catOf(category).label;
+  var title = cleanTitle(itemName(text, amt)) || catOf(category).label;
   return {
     title: title,
     amount: amt ? amt.value : 0,

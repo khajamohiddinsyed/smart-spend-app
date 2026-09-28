@@ -1,4 +1,4 @@
-/* Smart Spend 3.0 — design system
+/* Smart Spend — design system
    Dark-first (deep slate, cyan accent, INR gold), with a light theme. Colours are tokens;
    components never use raw hex. The in/out pair passed the colour-vision checks in both themes. */
 
@@ -556,7 +556,7 @@ button.set-row:hover { background: var(--surface-2); }
   .tiles .tile .v { font-size: 17px; }
 }
 
-/* ---------- accounts (3.0) ---------- */
+/* ---------- accounts ---------- */
 .g-points { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 14px; }
 .g-points li { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; color: var(--text-2); font-size: 14.5px; line-height: 1.45; }
 .g-points li svg { width: 20px; height: 20px; padding: 8px; box-sizing: content-box; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
