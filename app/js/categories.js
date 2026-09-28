@@ -15,7 +15,7 @@ var CATEGORIES = [
       'nova water', 'berain', 'water bottle', 'coffee beans', 'gas cylinder refill',
       '~milk', '~eggs', '~bread', '~rice', '~chicken', '~meat', '~mutton', '~fish', '~dates', '~oil', '~sugar', '~atta', '~flour',
       '~dal', '~laban', '~yogurt', '~curd', '~cheese', '~butter', '~onions', '~tomatoes', '~potatoes', '~household', '~detergent', '~tissues'] },
-  { id: 'Dining', label: 'Dining', color: '#fb923c',
+  { id: 'Dining', label: 'Food & Drinks', color: '#fb923c',             // id kept as 'Dining' so stored entries are unchanged
     kw: ['restaurant', 'cafe', 'cafeteria', 'coffee', 'starbucks', 'dunkin', 'tim hortons', 'barns', 'half million', 'dr cafe', 'costa',
       'java time', 'caribou', 'lunch', 'dinner', 'breakfast', 'brunch', 'supper', 'snacks', 'snack', 'shawarma', 'shawarmer', 'mandi',
       'kabsa', 'biryani', 'broast', 'falafel', 'burger', 'pizza', 'mcdonald', 'mcdonalds', 'kfc', 'albaik', 'al baik', 'kudu', 'herfy',

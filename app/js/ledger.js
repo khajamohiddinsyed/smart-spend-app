@@ -69,7 +69,7 @@ export function sanitizeTxn(t) {
   let cat = String(t.category || 'General');
   if (cat === 'Cash/ATM' || cat.toLowerCase() === 'cash') cat = 'Cash';
   if (!CAT_BY_ID[cat] && !isCustomId(cat)) {           // a custom id not known yet is kept, not lost
-    const match = CATEGORIES.filter((c) => c.id.toLowerCase() === cat.toLowerCase())[0];
+    const match = CATEGORIES.filter((c) => c.id.toLowerCase() === cat.toLowerCase() || c.label.toLowerCase() === cat.toLowerCase())[0];
     cat = match ? match.id : 'General';
   }
   const date = parseLooseDate(t.date) || todayISO();

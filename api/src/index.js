@@ -120,7 +120,7 @@ function cleanCurrency(v, optional) {
 function cleanCategories(v) {
   if (!Array.isArray(v)) throw bad('Categories must be a list.', 'categories');
   if (v.length > MAX_CUSTOM) throw bad('You can have up to ' + MAX_CUSTOM + ' of your own categories.', 'categories');
-  const ids = new Set(), labels = new Set(CATEGORIES.map((c) => c.toLowerCase()).concat(['cash/atm', 'other']));
+  const ids = new Set(), labels = new Set(CATEGORIES.map((c) => c.toLowerCase()).concat(['cash/atm', 'food & drinks', 'food and drinks', 'other']));
   return v.map((c) => {
     const id = String(c && c.id || '');
     if (!CUSTOM_ID.test(id) || ids.has(id)) throw bad('A category has an invalid id.', 'categories');
@@ -467,9 +467,11 @@ async function aiParse(req, env, u) {
   if (mins) throw new HttpError(429, 'ai_limit', 'You’ve used your ' + AI_PER_DAY + ' AI checks for today. The regular preview still works, and AI checks come back tomorrow.');
 
   const custom = parseCats(u.categories);
-  const cats = CATEGORIES.map((id) => ({ id, label: id === 'Cash' ? 'Cash/ATM withdrawal' : id })).concat(custom);
+  const LABELS = { Cash: 'Cash/ATM withdrawal', Dining: 'Food & Drinks: restaurants, cafés, coffee, tea, juice, snacks, food delivery' };
+  const cats = CATEGORIES.map((id) => ({ id, label: LABELS[id] || id })).concat(custom);
   const byKey = {};
   cats.forEach((c) => { byKey[c.id.toLowerCase()] = c.id; byKey[String(c.label).toLowerCase()] = c.id; });
+  ['food & drinks', 'food and drinks', 'food', 'drinks', 'restaurant', 'cash/atm', 'atm'].forEach((k) => { if (!byKey[k]) byKey[k] = /cash|atm/.test(k) ? 'Cash' : 'Dining'; });
 
   const model = env.AI_MODEL || AI_MODEL;
   let out;
