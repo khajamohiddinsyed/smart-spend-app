@@ -119,6 +119,21 @@ await test('big first upload in chunks, then paging', async () => {
   assert.equal(tooMany.status, 400);
 });
 
+await test('custom categories: saved, synced to entries, validated', async () => {
+  const cats = [{ id: 'c_travel01', label: 'Travel', emoji: '✈️', words: ['trip', 'Hotel', ' flight '] }];
+  const r = await call('PATCH', '/api/me', { categories: cats }, token);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.user.categories[0], { id: 'c_travel01', label: 'Travel', emoji: '✈️', words: ['trip', 'hotel', 'flight'] });
+  assert.ok(r.body.user.categoriesUpdatedAt > 0);
+  const s = await call('POST', '/api/sync', { since: 0, changes: [rec('trip1', { category: 'c_travel01', title: 'Hotel' })] }, token);
+  assert.equal(s.body.records.find((x) => x.id === 'trip1').category, 'c_travel01');
+  assert.equal(s.body.account.categoriesUpdatedAt, r.body.user.categoriesUpdatedAt);
+  assert.equal((await call('PATCH', '/api/me', { categories: [{ id: 'bad', label: 'X' }] }, token)).status, 400);
+  assert.equal((await call('PATCH', '/api/me', { categories: [{ id: 'c_abcd1', label: 'Dining' }] }, token)).status, 400);   // clashes with built-in
+  assert.equal((await call('PATCH', '/api/me', { categories: Array.from({ length: 31 }, (_, i) => ({ id: 'c_x' + String(i).padStart(4, '0'), label: 'C' + i })) }, token)).status, 400);
+  assert.equal((await call('PATCH', '/api/me', { name: 'Test User' }, token)).body.user.categories.length, 1);          // other edits keep them
+});
+
 await test('settings: change currency and drop the second one', async () => {
   const r = await call('PATCH', '/api/me', { currency: 'INR', altCurrency: null }, token);
   assert.deepEqual([r.body.user.currency, r.body.user.altCurrency, r.body.user.rate], ['INR', null, null]);

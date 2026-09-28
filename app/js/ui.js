@@ -59,6 +59,7 @@ export function icon(name, cls) {
 export function catIcon(catId, size) {
   const c = catOf(catId);
   const st = size ? 'width:' + size + 'px;height:' + size + 'px;' : '';
+  if (c.custom) return '<span class="cat-ico emoji" style="--cat:' + c.color + ';' + st + '">' + esc(c.emoji || '🏷️') + '</span>';
   return '<span class="cat-ico" style="--cat:' + c.color + ';' + st + '">' + icon(P[catId] ? catId : 'General') + '</span>';
 }
 export function catTag(catId) { const c = catOf(catId); return '<span class="tag" style="--cat:' + c.color + '">' + esc(c.label) + '</span>'; }

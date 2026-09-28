@@ -5,12 +5,13 @@ import { state, load, reset, setRate, loadDemo, clearAll, restoreSnapshot, build
 import { describe, syncNow, scheduleSync, cancelTimers, pendingCount, forgetSyncState } from './sync.js';
 import { account, loadSession, signedIn, logout, refreshUser, userColor } from './auth.js';
 import { cur, setCurrencies } from './currency.js';
+import { setCustomCategories } from './categories.js';
 import { ui, resetScreenState } from './appstate.js';
 import { icon, avatar, toast, initToast, initSheet, openSheet, closeSheet, sheetOpen, prefs, setPref, applyTheme, armed } from './ui.js';
 import { homeView, activityView, activityListHtml, activityCounts, insightsView, moreView } from './views.js';
 import {
   openQuickAdd, openEdit, removeWithUndo, openBudgets, openRestore, openCurrencySettings, openChangePassword,
-  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp
+  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp, openCategories
 } from './sheets.js';
 import { initGate, show as showGate, gateOpen, close as closeGate } from './gate.js';
 
@@ -83,6 +84,7 @@ function profileFromAccount() {
 }
 
 function applyUser(u) {
+  setCustomCategories(u.categories || []);
   setCurrencies(u.currency, u.altCurrency);
   if (!cur.alt && prefs.show === 'alt') setPref('show', 'base');
   if (u.rate && (u.rateUpdatedAt || 0) > (state.rateUpdatedAt || 0)) { state.rate = u.rate; state.rateUpdatedAt = u.rateUpdatedAt; }
@@ -98,6 +100,7 @@ function openShared() {
 
 function enter(isNew, message) {
   ui.profile = profileFromAccount();
+  setCustomCategories((account.user && account.user.categories) || []);   // before load, so their entries keep them
   load(account.key);
   applyUser(account.user);
   resetScreenState();
@@ -218,6 +221,7 @@ function onViewClick(e) {
     case 'example': openQuickAdd(t.getAttribute('data-text')); break;
     case 'typing-help': openTypingHelp(); break;
     case 'currency': openCurrencySettings(); break;
+    case 'categories': openCategories(); break;
     case 'change-password': openChangePassword(); break;
     case 'recovery-code': openNewRecoveryCode(); break;
     case 'delete-account': openDeleteAccount(() => afterAccountDeleted()); break;

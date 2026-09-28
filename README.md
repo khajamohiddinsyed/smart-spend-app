@@ -52,6 +52,14 @@ Copy one or several bank or credit-card SMS and paste them into the Add box. On 
 
 Every entry remembers the account or card it came from. Balances, limits and reference numbers are ignored, and a message you've already added is skipped, so pasting the same SMS twice never counts it twice. Insights shows spending **by account**, and how much went on credit cards, which is borrowed money you'll pay back.
 
+### ✨ AI takes a second look when it's unsure
+
+When the instant preview isn't sure (an entry lands in *General*, or part of the text has no amount), a **✨ Check with AI** button appears. AI reads the text again and suggests clean entries: English, Hinglish ("kal raat pizza 650") and long trip stories alike. You still see everything before tapping **Add**. It runs on Cloudflare Workers AI, only sees the text you choose to check, and each person gets up to 40 checks a day.
+
+### 🏷️ Your own categories
+
+Add categories like ✈️ Travel, 👶 Kids or 🏠 Rent in **Settings → Categories**, with the words that belong to them (*trip, hotel, flight*). Entries with those words go there automatically, AI uses them too, and they sync to all your devices. Delete one and its entries move to General, so nothing is lost.
+
 **Also:**
 - 🗓️ **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09.
 - ↕️ **In or out, worked out for you:** salary, refund, cashback and received mean money in. Spent, paid and bought mean money out.

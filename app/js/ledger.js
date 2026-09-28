@@ -5,7 +5,7 @@ import {
   store, emit, uid, round2, todayDate, todayISO, toISO, fromISO, isValidISO, makeDate, monthIndex,
   DEFAULT_RATE, MAX_AMOUNT, addMonths, daysInMonth, monthKey
 } from './core.js';
-import { CATEGORIES, CAT_BY_ID, catOf, sanitizeLearned, learnCategory } from './categories.js';
+import { CATEGORIES, CAT_BY_ID, catOf, sanitizeLearned, learnCategory, isCustomId } from './categories.js';
 import { cur, currencyInfo } from './currency.js';
 
 export const DATA_PREFIX = 'ss3.data.';
@@ -68,7 +68,7 @@ export function sanitizeTxn(t) {
   const type = (typeRaw === 'in' || typeRaw === 'inflow' || typeRaw === 'credit' || typeRaw === 'income') ? 'in' : 'out';
   let cat = String(t.category || 'General');
   if (cat === 'Cash/ATM' || cat.toLowerCase() === 'cash') cat = 'Cash';
-  if (!CAT_BY_ID[cat]) {
+  if (!CAT_BY_ID[cat] && !isCustomId(cat)) {           // a custom id not known yet is kept, not lost
     const match = CATEGORIES.filter((c) => c.id.toLowerCase() === cat.toLowerCase())[0];
     cat = match ? match.id : 'General';
   }
@@ -210,6 +210,15 @@ export function updateTxn(id, patch) {
   Object.assign(t, patch, { updatedAt: Date.now() });
   persist();
   return t;
+}
+
+/** Moves every entry in one category to another (a deleted custom category → General). */
+export function recategorize(fromId, toId) {
+  const now = Date.now();
+  let n = 0;
+  state.txns.forEach((t, i) => { if (t.category === fromId) { t.category = toId; t.updatedAt = now + i; n++; } });
+  if (n) persist();
+  return n;
 }
 
 export function deleteTxn(id) {

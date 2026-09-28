@@ -16,6 +16,10 @@ const INSERT_CHUNK = 400;
 
 export const CURRENCIES = ['SAR', 'INR', 'AED', 'QAR', 'KWD', 'BHD', 'OMR', 'EGP', 'PKR', 'BDT', 'LKR', 'NPR', 'PHP', 'IDR', 'MYR', 'SGD', 'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'TRY', 'ZAR', 'NGN', 'KES'];
 const CATEGORIES = ['Groceries', 'Dining', 'Transport', 'Utilities', 'Cash', 'Shopping', 'Healthcare', 'Salary', 'Freelance', 'General'];
+const CUSTOM_ID = /^c_[a-z0-9]{4,16}$/;
+const MAX_CUSTOM = 30;
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+const AI_PER_DAY = 40;                 // per person, so one heavy user can't use up the shared free allowance
 
 /* ------------------------------------------------------------------ http */
 
@@ -112,6 +116,26 @@ function cleanCurrency(v, optional) {
   if (!CURRENCIES.includes(c)) throw bad('Pick a currency from the list.', 'currency');
   return c;
 }
+/** The account's own categories, or throws. */
+function cleanCategories(v) {
+  if (!Array.isArray(v)) throw bad('Categories must be a list.', 'categories');
+  if (v.length > MAX_CUSTOM) throw bad('You can have up to ' + MAX_CUSTOM + ' of your own categories.', 'categories');
+  const ids = new Set(), labels = new Set(CATEGORIES.map((c) => c.toLowerCase()).concat(['cash/atm', 'other']));
+  return v.map((c) => {
+    const id = String(c && c.id || '');
+    if (!CUSTOM_ID.test(id) || ids.has(id)) throw bad('A category has an invalid id.', 'categories');
+    const label = String(c.label || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+    if (!label) throw bad('Give every category a name.', 'categories');
+    if (labels.has(label.toLowerCase())) throw bad('There is already a category called ' + label + '.', 'categories');
+    ids.add(id); labels.add(label.toLowerCase());
+    const emoji = String(c.emoji || '🏷️').replace(/[<>"'&]/g, '').trim().slice(0, 8) || '🏷️';
+    const words = (Array.isArray(c.words) ? c.words : []).map((w) => String(w).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 24))
+      .filter(Boolean).slice(0, 20);
+    return { id, label, emoji, words };
+  });
+}
+const parseCats = (raw) => { try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+
 function cleanRate(v) {
   if (v == null || v === '') return null;
   const r = Number(v);
@@ -132,7 +156,7 @@ function cleanRecord(r, now) {
   const amount = round2(Math.abs(Number(r.amount)));
   if (!(amount > 0) || amount > 1e9) return null;
   const type = r.type === 'in' ? 'in' : 'out';
-  const category = CATEGORIES.includes(r.category) ? r.category : 'General';
+  const category = CATEGORIES.includes(r.category) || CUSTOM_ID.test(String(r.category || '')) ? r.category : 'General';
   const date = String(r.date || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const title = String(r.title || '').replace(/\s+/g, ' ').trim().slice(0, 120) || category;
@@ -196,7 +220,8 @@ async function requireUser(req, env) {
 
 const publicUser = (u) => ({
   email: u.email, name: u.name, currency: u.currency, altCurrency: u.alt_currency || null,
-  rate: u.rate || null, rateUpdatedAt: u.rate_updated_at || 0, createdAt: u.created_at
+  rate: u.rate || null, rateUpdatedAt: u.rate_updated_at || 0, createdAt: u.created_at,
+  categories: parseCats(u.categories), categoriesUpdatedAt: u.categories_updated_at || 0
 });
 
 /* -------------------------------------------------------------- handlers */
@@ -291,8 +316,10 @@ async function updateMe(req, env, u) {
   let rate = b.rate !== undefined ? cleanRate(b.rate) : u.rate;
   let rateAt = b.rate !== undefined ? (Math.floor(Number(b.rateUpdatedAt)) || Date.now()) : u.rate_updated_at;
   if (!alt) { rate = null; }
-  await env.DB.prepare('UPDATE users SET name = ?2, currency = ?3, alt_currency = ?4, rate = ?5, rate_updated_at = ?6, updated_at = ?7 WHERE id = ?1')
-    .bind(u.id, name, currency, alt, rate, rateAt || 0, Date.now()).run();
+  const cats = b.categories !== undefined ? JSON.stringify(cleanCategories(b.categories)) : (u.categories || null);
+  const catsAt = b.categories !== undefined ? Date.now() : (u.categories_updated_at || 0);
+  await env.DB.prepare('UPDATE users SET name = ?2, currency = ?3, alt_currency = ?4, rate = ?5, rate_updated_at = ?6, updated_at = ?7, categories = ?8, categories_updated_at = ?9 WHERE id = ?1')
+    .bind(u.id, name, currency, alt, rate, rateAt || 0, Date.now(), cats, catsAt).run();
   return { user: publicUser(await env.DB.prepare('SELECT * FROM users WHERE id = ?1').bind(u.id).first()) };
 }
 
@@ -360,7 +387,7 @@ async function sync(req, env, u) {
      WHERE r.user_id = ?1 AND r.id = j.value
      ORDER BY seq, id LIMIT ?4`
   ).bind(u.id, since, pushedIds, PAGE + 1));
-  stmts.push(env.DB.prepare('SELECT seq, rate, rate_updated_at, currency, alt_currency, name FROM users WHERE id = ?1').bind(u.id));
+  stmts.push(env.DB.prepare('SELECT seq, rate, rate_updated_at, currency, alt_currency, name, categories_updated_at FROM users WHERE id = ?1').bind(u.id));
 
   const results = await env.DB.batch(stmts);            // one transaction
   let out = results[results.length - 2].results || [];
@@ -378,9 +405,101 @@ async function sync(req, env, u) {
   return {
     records: out.map((r) => (r.deleted ? { id: r.id, deleted: true, updatedAt: r.updated_at } : Object.assign(JSON.parse(r.data), { deleted: false }))),
     seq, more, rate: head.rate || null, rateUpdatedAt: head.rate_updated_at || 0,
-    account: { currency: head.currency, altCurrency: head.alt_currency || null, name: head.name },
+    account: { currency: head.currency, altCurrency: head.alt_currency || null, name: head.name, categoriesUpdatedAt: head.categories_updated_at || 0 },
     rejected: raw.length - rows.length
   };
+}
+
+/* -------------------------------------------------------------------- AI */
+
+// The rules in the app handle most entries; this is the fallback for text they're unsure about.
+// Workers AI runs on the same Cloudflare account. The answer is treated as untrusted and
+// checked field by field, like anything else a device sends.
+const CURRENCY_HINT = 'Rs, ₹ and rupees = INR; riyal, SR and SAR = SAR; dirham and AED = AED; $ = USD; € = EUR; £ = GBP';
+
+function aiPrompt(today, base, alt, cats) {
+  return [
+    'You turn a person\'s note about their money into ledger entries and reply with JSON only.',
+    'Today is ' + today + '. Their main currency is ' + base + (alt ? ' and their second currency is ' + alt : '') + '.',
+    'Categories (use the id exactly): ' + cats.map((c) => c.id + ' = ' + c.label + (c.words && c.words.length ? ' (' + c.words.slice(0, 8).join(', ') + ')' : '')).join('; ') + '.',
+    'Rules:',
+    '- One entry per separate amount of money that was spent or received. Never add, subtract or net amounts together, and never invent an amount that isn\'t written.',
+    '- Most notes are about spending: use "out" unless the words clearly say the money came to the person.',
+    '- Ignore balances, available or credit limits, budgets, reference numbers, phone numbers, card or account numbers, and counts of people, nights, days or items.',
+    '- type is "out" for money spent, paid, debited, sent or given, and "in" for money received, credited, refunded, earned or returned.',
+    '- title is what was bought, who was paid, or who paid: 1 to 4 words in Title Case, with no amounts, currencies or dates.',
+    '- date is YYYY-MM-DD. Work out words like yesterday or last friday from today. Use today when no date is given.',
+    '- currency is the ISO code if the note names one (' + CURRENCY_HINT + '), otherwise null.',
+    '- category is the best id from the list, or General if nothing fits.',
+    'Reply with exactly: {"entries":[{"title":"","amount":0,"type":"out","category":"General","date":"' + today + '","currency":null}]}'
+  ].join('\n');
+}
+
+// Two worked examples: they fix the mistakes small models make most (calling spending "in",
+// netting two amounts into one, inventing a number).
+const AI_EXAMPLES = [
+  { role: 'user', content: 'went to dubai trip, hotel 900 and taxi 60 yesterday. my friend paid me back 200' },
+  { role: 'assistant', content: '{"entries":[{"title":"Hotel","amount":900,"type":"out","category":"General","date":"<yesterday>","currency":null},{"title":"Taxi","amount":60,"type":"out","category":"Transport","date":"<yesterday>","currency":null},{"title":"Friend Paid Back","amount":200,"type":"in","category":"General","date":"<today>","currency":null}]}' },
+  { role: 'user', content: 'dad sent me 5000 for rent, I paid rent 4500 and chai 20' },
+  { role: 'assistant', content: '{"entries":[{"title":"From Dad","amount":5000,"type":"in","category":"General","date":"<today>","currency":null},{"title":"Rent","amount":4500,"type":"out","category":"Utilities","date":"<today>","currency":null},{"title":"Chai","amount":20,"type":"out","category":"Dining","date":"<today>","currency":null}]}' }
+];
+
+function examplesFor(today) {
+  const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 1);
+  const yday = d.toISOString().slice(0, 10);
+  return AI_EXAMPLES.map((m) => ({ role: m.role, content: m.content.replace(/<today>/g, today).replace(/<yesterday>/g, yday) }));
+}
+
+function extractJson(text) {
+  const s = String(text || '');
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a === -1 || b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }
+}
+
+async function aiParse(req, env, u) {
+  if (!env.AI) throw new HttpError(503, 'ai_off', 'AI checking isn’t available right now.');
+  const b = await readJson(req);
+  const text = String(b.text || '').replace(/\s+\n/g, '\n').trim().slice(0, 1500);
+  if (!text) throw bad('There’s nothing to check.');
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(b.today) ? b.today : new Date().toISOString().slice(0, 10);
+  const mins = await tooMany(env, 'ai:' + u.id, AI_PER_DAY, 86_400_000);
+  if (mins) throw new HttpError(429, 'ai_limit', 'You’ve used your ' + AI_PER_DAY + ' AI checks for today. The regular preview still works, and AI checks come back tomorrow.');
+
+  const custom = parseCats(u.categories);
+  const cats = CATEGORIES.map((id) => ({ id, label: id === 'Cash' ? 'Cash/ATM withdrawal' : id })).concat(custom);
+  const byKey = {};
+  cats.forEach((c) => { byKey[c.id.toLowerCase()] = c.id; byKey[String(c.label).toLowerCase()] = c.id; });
+
+  const model = env.AI_MODEL || AI_MODEL;
+  let out;
+  try {
+    out = await env.AI.run(model, {
+      messages: [{ role: 'system', content: aiPrompt(today, u.currency, u.alt_currency, cats) }].concat(examplesFor(today), [{ role: 'user', content: text }]),
+      max_tokens: 700, temperature: 0
+    });
+  } catch (e) {
+    console.error('ai', e && e.message);
+    throw new HttpError(503, 'ai_busy', 'The AI can’t help right now (it may have reached today’s free limit). Try again later; the regular preview still works.');
+  }
+  const raw = out && out.response;
+  const data = typeof raw === 'object' && raw ? raw : extractJson(raw);
+  const list = data && Array.isArray(data.entries) ? data.entries : Array.isArray(data) ? data : [];
+  const y = +today.slice(0, 4);
+  const entries = list.slice(0, 25).map((e) => {
+    const amount = round2(Math.abs(Number(String(e && e.amount).replace(/[^\d.]/g, ''))));
+    if (!(amount > 0) || amount > 1e9) return null;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Math.abs(+e.date.slice(0, 4) - y) <= 3 ? e.date : today;
+    const title = String(e.title || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    const code = String(e.currency || '').toUpperCase();
+    return {
+      title, amount, date,
+      type: e.type === 'in' ? 'in' : 'out',
+      category: byKey[String(e.category || '').toLowerCase()] || 'General',
+      currency: CURRENCIES.includes(code) ? code : null
+    };
+  }).filter(Boolean);
+  return { entries, model, usage: out && out.usage || null };
 }
 
 /* ---------------------------------------------------------------- router */
@@ -396,6 +515,7 @@ const ROUTES = {
   'POST /api/password': { auth: true, fn: changePassword },
   'POST /api/recovery-code': { auth: true, fn: newRecovery },
   'POST /api/sync': { auth: true, fn: sync },
+  'POST /api/ai/parse': { auth: true, fn: aiParse },
   'GET /api/health': { fn: async () => ({ ok: true }) }
 };
 

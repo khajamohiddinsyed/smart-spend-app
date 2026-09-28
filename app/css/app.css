@@ -604,3 +604,9 @@ button.set-row:hover { background: var(--surface-2); }
 .acct-row .vl small { font-size: 12px; }
 .pv-item.dup { opacity: .5; }
 .note.acct { color: var(--text-2); }
+.cat-ico.emoji { font-size: 18px; line-height: 1; }
+.ai-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.ai-bar.unsure { padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-soft); }
+.ai-bar .ai-err { color: var(--out-text); flex-basis: 100%; }
+.emoji-ideas { flex-wrap: wrap; margin: -4px 0 4px; }
+.emoji-ideas .chip { font-size: 17px; padding: 4px 8px; }

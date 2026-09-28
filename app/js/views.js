@@ -4,7 +4,7 @@ import {
   esc, plural, MONTHS, MONTHS_FULL, DOW, todayISO, toISO, fromISO, fmtDayHeading, fmtDate, addMonths, daysInMonth,
   monthKey, round2, APP_VERSION, store
 } from './core.js';
-import { CATEGORIES, catOf } from './categories.js';
+import { CATEGORIES, catOf, customCategories } from './categories.js';
 import { state, inMonth, totals, categorySpend, monthlySeries, cumulativeSpend, sortedTxns, dayAggregates, getBudgets, knownAccounts, accountTotals, isCard } from './ledger.js';
 import { describe } from './sync.js';
 import { ui } from './appstate.js';
@@ -334,6 +334,7 @@ export function moreView() {
     (cur.alt ? '<div class="set-row"><span class="set-ico">' + icon('coins') + '</span><span class="set-main"><b>Exchange rate</b><span>Converts ' + cur.alt + ' amounts you type</span></span>' +
       '<span class="rate-inline"><span class="muted" style="font-size:13px">1 ' + cur.base + ' =</span><input class="input num" id="rateInput" inputmode="decimal" type="number" step="any" min="0" value="' + state.rate + '" aria-label="' + cur.alt + ' per ' + cur.base + '"></span></div>' +
       '<div class="set-row"><span class="set-ico">' + icon('coins') + '</span><span class="set-main"><b>Show amounts in</b><span>The other currency appears smaller</span></span>' + curToggle() + '</div>' : '') +
+    set('categories', 'spark', 'Categories', customCategories().length ? plural(customCategories().length, 'of your own', 'of your own') + ' · ' + esc(customCategories().map((c) => c.emoji + ' ' + c.label).slice(0, 3).join(', ')) : 'Add your own, like Travel or Rent') +
     set('budgets', 'target', 'Budgets', 'Monthly limits per category') + '</div>';
 
   html += '<div class="section-label">Sync</div><div class="set-group">' +

@@ -1,5 +1,5 @@
 // Category knowledge base, keyword matching (plurals, prefixes, typos) and
-// learning from the user's corrections. Carried over unchanged from v1.
+// learning from the user's corrections, plus the account's own custom categories.
 
 // Category knowledge base. A "~" prefix marks a generic word (weight 1).
 // Plain words weigh 2 and multi-word phrases 3, so "coffee beans" beats
@@ -112,9 +112,46 @@ function buildIndex(entries, weights) {
   return idx;
 }
 
-var CAT_INDEX = buildIndex([].concat.apply([], CATEGORIES.map(function (c) {
-  return c.kw.map(function (k) { return { kw: k, key: c.id }; });
-})), { generic: 1, word: 2, phrase: 3 });
+function mergeIndex(a, b) {
+  var out = { exact: {}, prefix: a.prefix.concat(b.prefix), phrases: a.phrases.concat(b.phrases), fuzzy: a.fuzzy.concat(b.fuzzy) };
+  [a, b].forEach(function (x) { Object.keys(x.exact).forEach(function (k) { out.exact[k] = (out.exact[k] || []).concat(x.exact[k]); }); });
+  return out;
+}
+function catEntries(list) {
+  return [].concat.apply([], list.map(function (c) { return c.kw.map(function (k) { return { kw: k, key: c.id }; }); }));
+}
+var BUILTIN_INDEX = buildIndex(catEntries(CATEGORIES), { generic: 1, word: 2, phrase: 3 });
+var CAT_INDEX = BUILTIN_INDEX;
+
+/* ---------- custom categories (per account, synced) ---------- */
+
+var CUSTOM_COLORS = ['#f59e0b', '#22d3ee', '#e879f9', '#84cc16', '#f97316', '#818cf8', '#14b8a6', '#fb7185', '#eab308', '#38bdf8'];
+var CUSTOM_ID = /^c_[a-z0-9]{4,16}$/;
+var isCustomId = function (id) { return CUSTOM_ID.test(String(id || '')); };
+
+/**
+ * Installs the account's own categories: [{ id: 'c_…', label, emoji, words: [..] }].
+ * They sit before General in every list, and their words outweigh built-in ones on a tie,
+ * so a custom "Travel" with the word "trip" wins over Transport.
+ */
+function setCustomCategories(list) {
+  for (var i = CATEGORIES.length - 1; i >= 0; i--) if (CATEGORIES[i].custom) { delete CAT_BY_ID[CATEGORIES[i].id]; CATEGORIES.splice(i, 1); }
+  var clean = (Array.isArray(list) ? list : []).filter(function (c) { return c && isCustomId(c.id) && c.label; }).slice(0, 30);
+  var general = CATEGORIES.pop();
+  clean.forEach(function (c, i) {
+    var cat = {
+      id: c.id, label: String(c.label).slice(0, 24), emoji: String(c.emoji || '🏷️').slice(0, 8), custom: true,
+      color: CUSTOM_COLORS[i % CUSTOM_COLORS.length], words: (c.words || []).slice(0, 20),
+      kw: [String(c.label)].concat(c.words || []).map(function (w) { return String(w).trim(); }).filter(Boolean)
+    };
+    CATEGORIES.push(cat);
+    CAT_BY_ID[cat.id] = cat;
+  });
+  CATEGORIES.push(general);
+  var custom = CATEGORIES.filter(function (c) { return c.custom; });
+  CAT_INDEX = custom.length ? mergeIndex(BUILTIN_INDEX, buildIndex(catEntries(custom), { generic: 1.6, word: 2.6, phrase: 3.6 })) : BUILTIN_INDEX;
+}
+function customCategories() { return CATEGORIES.filter(function (c) { return c.custom; }); }
 var DIR_INDEX = buildIndex(
   INFLOW_KW.map(function (k) { return { kw: k, key: 'in' }; }).concat(OUTFLOW_KW.map(function (k) { return { kw: k, key: 'out' }; })),
   { generic: 0.5, word: 1, phrase: 2 });
@@ -251,12 +288,12 @@ function sanitizeLearned(raw) {
   Object.keys(raw.tokens || {}).slice(0, 400).forEach(function (t) {
     var e = raw.tokens[t], clean = {};
     if (!e || typeof e !== 'object') return;
-    Object.keys(e).forEach(function (c) { if (CAT_BY_ID[c] && e[c] > 0) clean[c] = Math.min(20, Number(e[c]) || 0); });
+    Object.keys(e).forEach(function (c) { if ((CAT_BY_ID[c] || isCustomId(c)) && e[c] > 0) clean[c] = Math.min(20, Number(e[c]) || 0); });
     if (Object.keys(clean).length) out.tokens[normText(t)] = clean;
   });
   Object.keys(raw.phrases || {}).slice(0, 300).forEach(function (p) {
     var e = raw.phrases[p];
-    if (e && CAT_BY_ID[e.c]) out.phrases[normText(p)] = { c: e.c, n: Math.min(20, Number(e.n) || 1) };
+    if (e && (CAT_BY_ID[e.c] || isCustomId(e.c))) out.phrases[normText(p)] = { c: e.c, n: Math.min(20, Number(e.n) || 1) };
   });
   return out;
 }
@@ -298,6 +335,8 @@ function detectDirection(text, category, sign) {
 }
 
 
-function catOf(id) { return CAT_BY_ID[id] || CAT_BY_ID.General; }
+// An entry can arrive from another device before its custom category does: show it as Other meanwhile.
+var OTHER = { id: 'c_other', label: 'Other', emoji: '🏷️', color: '#94a3b8', custom: true, kw: [] };
+function catOf(id) { return CAT_BY_ID[id] || (isCustomId(id) ? OTHER : CAT_BY_ID.General); }
 
-export { CATEGORIES, CAT_BY_ID, catOf, normText, detectCategory, detectDirection, learnCategory, sanitizeLearned, STOP_WORDS };
+export { CATEGORIES, CAT_BY_ID, catOf, normText, detectCategory, detectDirection, learnCategory, sanitizeLearned, STOP_WORDS, setCustomCategories, customCategories, isCustomId };

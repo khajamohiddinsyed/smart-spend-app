@@ -12,3 +12,8 @@ binding = "DB"
 database_name = "smart-spend"
 database_id = "d3e2c258-cab5-4133-8d48-8fe4f8f3bf77"
 migrations_dir = "migrations"
+
+# Workers AI, the fallback for text the app's rules are unsure about (POST /api/ai/parse).
+[ai]
+binding = "AI"
+remote = true      # Workers AI always runs on Cloudflare, also during local development
