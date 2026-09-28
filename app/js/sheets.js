@@ -352,7 +352,7 @@ export function openInstallHelp() {
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const android = /Android/.test(navigator.userAgent);
   const steps = {
-    android: ['Open Smart Spend in <b>Chrome</b>.', 'Tap the <b>⋮</b> menu at the top right.', 'Tap <b>Add to Home screen</b> (or <b>Install app</b>), then <b>Install</b>.'],
+    android: ['Open Smart Spend in <b>Chrome</b>.', 'Tap the <b>⋮</b> menu at the top right.', 'Tap <b>Add to Home screen</b> (or <b>Install app</b>).', 'Choose <b>Install</b>, not <b>Create shortcut</b>, and confirm. Only Install opens it full screen like an app.'],
     ios: ['Open Smart Spend in <b>Safari</b>.', 'Tap the <b>Share</b> button.', 'Tap <b>Add to Home Screen</b>, then <b>Add</b>.'],
     desktop: ['In Chrome or Edge, click the install icon at the right of the address bar.', 'Or open the browser menu and choose <b>Install Smart Spend</b>.']
   };

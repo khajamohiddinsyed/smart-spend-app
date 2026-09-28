@@ -66,7 +66,7 @@ Smart Spend is a money tracker you talk to in plain words. No forms, no dropdown
 - ✈️ **Offline first:** entries save on the device the moment you add them and sync when you're back online. Nothing gets lost on a flight.
 - 📱💻 **Same entries everywhere:** log in on your phone and your laptop. If one entry changed in two places, the latest edit wins.
 - 🏠 **Add it to your home screen:** it opens full screen from its own icon, like any app.
-  - **Android:** Chrome ⋮ menu → *Add to Home screen*
+  - **Android:** Chrome ⋮ menu → *Add to Home screen* → **Install** (not *Create shortcut*)
   - **iPhone:** Safari Share → *Add to Home Screen*
 
 ## 🔒 Your account stays yours
