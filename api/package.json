@@ -1,0 +1,15 @@
+{
+  "name": "smart-spend-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "db:local": "wrangler d1 migrations apply smart-spend --local",
+    "db:remote": "wrangler d1 migrations apply smart-spend --remote",
+    "deploy": "wrangler deploy",
+    "test": "node test/api.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.143.0"
+  }
+}

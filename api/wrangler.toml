@@ -1,0 +1,14 @@
+name = "smart-spend-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+# Web origins allowed to call the API (comma-separated).
+ALLOWED_ORIGINS = "https://khajamohiddinsyed.github.io,http://localhost:8797,http://127.0.0.1:8797"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "smart-spend"
+database_id = "00000000-0000-0000-0000-000000000000"   # replaced after `wrangler d1 create smart-spend`
+migrations_dir = "migrations"

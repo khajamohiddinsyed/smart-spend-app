@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://smart-spend-api.WORKERS_SUBDOMAIN.workers.dev http://127.0.0.1:8787; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#070b14">
+<meta name="description" content="Smart Spend: track spending and income by typing it in plain words. Budgets, insights and sync across your devices.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Smart Spend">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-64.png" sizes="64x64" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Smart Spend</title>
+<link rel="stylesheet" href="css/app.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<noscript><p style="padding:24px;font-family:sans-serif;color:#e8eef7;background:#070b14">Smart Spend needs JavaScript turned on.</p></noscript>
+
+<div class="app" id="app" hidden>
+  <nav class="tabbar" id="tabbar" aria-label="Main">
+    <div class="rail-brand"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M14 8h6v6"/></svg></span>Smart Spend</div>
+    <a class="tab" href="#home" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg>Home</a>
+    <a class="tab" href="#activity" data-tab="activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M7 13h4M7 17h7"/></svg>Activity</a>
+    <div class="tab-slot"><button class="fab" id="fab" aria-label="Add entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    <a class="tab" href="#insights" data-tab="insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Insights</a>
+    <a class="tab" href="#more" data-tab="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.2-3.6 4-5.2 7-5.2s5.8 1.6 7 5.2"/></svg>Settings</a>
+  </nav>
+  <div class="main-col">
+    <header class="topbar" id="topbar">
+      <h1 id="viewTitle">Smart Spend</h1>
+      <button class="sync-dot" id="syncDot" data-level="off" aria-label="Sync status"><i></i><span>Sync</span></button>
+      <button class="avatar-btn" id="avatarBtn" aria-label="Profile"></button>
+    </header>
+    <main class="view-host" id="viewHost">
+      <div class="ptr" id="ptr" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg></div>
+      <div id="view"></div>
+    </main>
+  </div>
+</div>
+
+<div class="gate" id="gate" hidden></div>
+
+<div class="sheet-layer" id="sheetLayer" aria-hidden="true">
+  <div class="backdrop" data-close></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="sheet-h"><h2 id="sheetTitle"></h2><button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="sheet-b" id="sheetBody"></div>
+    <div class="sheet-f" id="sheetFoot" hidden></div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="application/json,.json,text/plain" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
+</body>
+</html>
