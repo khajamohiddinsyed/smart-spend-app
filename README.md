@@ -1,60 +1,81 @@
-# Smart Spend
+<h1 align="center">💸 Smart Spend</h1>
 
-**Know where your money goes. Just type it.**
+<p align="center"><b>Know where your money goes. Just type it.</b></p>
 
-Smart Spend is a spending and income tracker you talk to in plain words. Instead of filling in forms, you write what happened, like "spent 40 on fuel and 18 coffee yesterday", and it becomes tidy entries with the right amounts, categories and dates.
+<p align="center">
+  <a href="https://khajamohiddinsyed.github.io/smart-spend-app/"><b>👉 Open Smart Spend</b></a> · free · works on Android, iPhone and any computer
+</p>
 
-**Use it:** https://khajamohiddinsyed.github.io/smart-spend-app/, free, in any browser. Add it to your home screen on Android or iPhone and it opens like an app.
+<p align="center">
+  <img src="docs/images/home.png" width="230" alt="Home: this month's balance, money in and out, and recent entries">
+  &nbsp;
+  <img src="docs/images/add-entry.png" width="230" alt="Add entry: one sentence becomes three entries, shown in a preview">
+  &nbsp;
+  <img src="docs/images/insights.png" width="230" alt="Insights: six months of money in and out, and spending pace">
+</p>
 
-## How it works
+Smart Spend is a money tracker you talk to in plain words. No forms, no dropdowns: write what happened the way you'd text a friend, and it becomes tidy entries with the right amount, category and date.
 
-1. **Create an account** with your email and a password, and pick your currency. You can also pick a second currency to see amounts in, for example earning in riyals and thinking in rupees.
-2. **Tell it what happened.** Tap **+** and type the way you'd text a friend. Several things in one message are fine.
-3. **Check the preview.** Before anything is saved you see each entry: the item, the amount, money in or out, the category and the date. Tap a category to change it.
-4. **Add.** The entries are saved on your device straight away and synced to your account, so they appear on every phone or computer you log in on.
+## ✨ How it works
 
-## What makes it different
+1. 👤 **Create a free account.** Pick your currency, plus a second one to see amounts in if you like (earn in riyals, think in rupees).
+2. 💬 **Tell it what happened.** Tap **+** and type. Several things in one message are fine.
+3. 👀 **Check the preview.** Before anything is saved you see every entry: item, amount, money in or out, category and date. Tap a category to change it.
+4. ✅ **Add.** It's saved on your phone instantly and synced to your account, so it's there on every device you log in on.
 
-### It understands how people actually write
+<p align="center">
+  <img src="docs/images/welcome.png" width="200" alt="Welcome screen">
+  &nbsp;
+  <img src="docs/images/register.png" width="200" alt="Create account with a currency and an optional second currency">
+  &nbsp;
+  <img src="docs/images/first-entry.png" width="200" alt="New accounts get a three-step guide to their first entry">
+</p>
 
-| You type | You get |
-|---|---|
-| `juice 15` | **Juice**, 15. The amount goes in the amount and the item name stays clean. |
-| `spent 40 on fuel and 18 coffee yesterday` | Two entries, **Fuel** 40 and **Coffee** 18, both dated yesterday |
-| `salary 14,500 credited` | Money **in**, under Salary |
-| `on 24th sep: taxi 30, lunch 45` | Both entries on 24 September |
-| `3 coffee x 12` · `2 coffees @ 15` · `3 shirts 40 each` | Quantity × price, worked out: 36, 30, 120 |
-| `rent 2.5k` · `petrol 2 lakh` · `fifty for parking` | 2,500 · 200,000 · 50 |
-| `groceries ٤٥٠` | Arabic and Persian digits work |
-| `₹500 recharge` (on a riyal account with rupees as the second currency) | Converted to riyals at your own rate |
+## 🧠 It understands how people actually write
 
-- **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09, sep 24 2026. A date at the start of a line carries to everything after it.
-- **Money in or out** is worked out from the words: salary, received, refund, cashback and credited mean money in; spent, paid and bought mean money out.
-- **Categories** come from hundreds of shop, brand and everyday words (Uber, Netflix, Carrefour, Swiggy, pharmacy, rent…). A typo like "resturant" still matches.
-- **It learns.** Change a category once and similar entries get it next time.
-- **Currencies:** 27 to choose from. The symbols and words people use are understood (₹, rs, rupees, $, dirham, riyals, €…), and "rs" means Pakistani rupees on a PKR account.
+- 🧃 `juice 15` → **Juice** · 15. The number goes into the amount; the name stays clean.
+- ⛽ `spent 40 on fuel and 18 coffee yesterday` → **Fuel** 40 ☕ **Coffee** 18, both dated yesterday
+- 💼 `salary 14,500 credited` → money **in** 💚, filed under Salary
+- 📅 `on 24th sep: taxi 30, lunch 45` → both on 24 September
+- 🛒 `3 coffee x 12` · `2 coffees @ 15` · `3 shirts 40 each` → worked out for you: 36 · 30 · 120
+- 🔢 `rent 2.5k` · `petrol 2 lakh` · `fifty for parking` → 2,500 · 200,000 · 50
+- 🌍 `groceries ٤٥٠` → Arabic and Persian digits work
+- 💱 `₹500 recharge` on a riyal account → converted to riyals at **your** rate
 
-### It shows you the month at a glance
+**Also:**
+- 🗓️ **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09.
+- ↕️ **In or out, worked out for you:** salary, refund, cashback and received mean money in. Spent, paid and bought mean money out.
+- 🏷️ **Smart categories** from hundreds of shops, brands and everyday words (Uber, Netflix, Carrefour, Swiggy, pharmacy, rent…). Even "resturant" matches.
+- 🎓 **It learns:** change a category once, and similar entries get it next time.
+- 💰 **27 currencies,** with their symbols and words (₹, rs, $, €, dirham, riyals…). On a PKR account, "rs" means Pakistani rupees.
 
-- The balance for the month, money in and out, and how much of what came in you kept.
-- A 6-month chart of money in and out, and your spending pace against last month.
-- Where the money went, by category.
-- Monthly budgets per category, with a warning at 80% and when you go over.
-- A calendar with a dot for each day that has entries, plus search and filters.
+## 📊 Your month at a glance
 
-### It works everywhere, even offline
+<p align="center">
+  <img src="docs/images/activity.png" width="230" alt="Activity: a calendar with dots for money in and out, filters and daily totals">
+</p>
 
-- **Offline first:** entries are saved on the device the moment you add them and sync when there's a connection. Nothing is lost on a flight or in a basement.
-- **On every device:** log in on your phone and your computer and you see the same entries. If the same entry was changed in two places, the latest edit wins.
-- **Installable:** add it to the home screen and it opens full screen from its own icon, like any app.
+- 🏠 **Home:** the month's balance, money in vs out, and how much of what came in you kept.
+- 📈 **Insights:** six months of money in and out, your spending pace against last month, and where it went by category.
+- 🎯 **Budgets:** a monthly limit per category, with a warning at 80% and when you go over.
+- 🗓️ **Activity:** a calendar with a dot on every day with entries, plus search and In/Out filters.
+- 🌓 **Dark and light themes.**
 
-### Your account stays yours
+## ☁️ Every device, even offline
 
-- **Your password never leaves your device.** It's scrambled in the browser before anything is sent, so the server only ever sees the scrambled form.
-- **A recovery code** is shown when you sign up. It's the only way to reset a forgotten password, so keep it safe. You can make a new one in Settings.
-- **Changing your password** signs out your other devices.
-- **Your data:** save a backup file of your entries at any time, restore from one, or delete your account and every entry for good.
+- ✈️ **Offline first:** entries save on the device the moment you add them and sync when you're back online. Nothing gets lost on a flight.
+- 📱💻 **Same entries everywhere:** log in on your phone and your laptop. If one entry changed in two places, the latest edit wins.
+- 🏠 **Add it to your home screen:** it opens full screen from its own icon, like any app.
+  - **Android:** Chrome ⋮ menu → *Add to Home screen*
+  - **iPhone:** Safari Share → *Add to Home Screen*
 
-## Under the hood
+## 🔒 Your account stays yours
 
-The app is plain JavaScript with no framework, served by GitHub Pages. Accounts and sync run on a Cloudflare Worker with a D1 (SQLite) database. The sync rules and endpoints are described in [docs/API.md](docs/API.md).
+- 🔑 **Your password never leaves your device.** It's scrambled in the browser first, so the server never sees it.
+- 🧾 **Recovery code:** shown once when you sign up. It's the only way to reset a forgotten password, so keep it safe. You can make a new one in Settings.
+- 🚪 **Changing your password** signs you out of your other devices.
+- 💾 **Your data, your call:** save a backup file any time, restore from one, or delete your account and every entry for good.
+
+---
+
+<sub>🛠️ Under the hood: plain JavaScript with no framework, served by GitHub Pages. Accounts and sync run on a Cloudflare Worker with a D1 database; see <a href="docs/API.md">docs/API.md</a>.</sub>
