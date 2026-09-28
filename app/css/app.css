@@ -626,3 +626,19 @@ button.set-row:hover { background: var(--surface-2); }
 .drop-row .dr-a { grid-row: 1 / span 2; align-self: center; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .cat-drop { animation: none; } .hbar.tap .caret { transition: none; } }
 .tag-admin { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; vertical-align: 1px; }
+
+/* budget warning icon must stay small (it sits in a plain span, not a button) */
+.meter .state svg { width: 14px; height: 14px; flex: none; }
+/* a touch more breathing room between category rows */
+.hbar { padding: 12px 2px; gap: 8px 12px; }
+.cat-list { margin-top: 2px; }
+/* spend donut + summary */
+.donut-host { display: flex; justify-content: center; padding: 8px 0 2px; }
+.donut-wrap { position: relative; width: 100%; max-width: 240px; }
+.donut { display: block; width: 100%; height: auto; overflow: visible; }
+.donut circle[tabindex] { cursor: pointer; outline: none; }
+.donut-total { fill: var(--text); font: 800 22px/1 var(--font-display); }
+.donut-cap { fill: var(--text-3); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.donut-wrap .tip { top: 4px; transform: translateX(-50%); }
+.where-summary { margin: 6px 2px 14px; color: var(--text-2); font-size: 13.5px; text-align: center; }
+.where-summary b { color: var(--text); }

@@ -11,7 +11,7 @@ import { ui } from './appstate.js';
 import { cur, currencyInfo, fmtMoney } from './currency.js';
 import { icon, catIcon, avatar, money, moneyAlt, moneyCompact, signed, prefs, displayValue, showCode } from './ui.js';
 import { isAdmin } from './auth.js';
-import { inOutColumns, paceLines } from './charts.js';
+import { inOutColumns, paceLines, donut } from './charts.js';
 
 const monthLabel = (y, m) => MONTHS_FULL[m] + ' ' + y;
 const isThisMonth = (y, m) => { const t = fromISO(todayISO()); return t.getFullYear() === y && t.getMonth() === m; };
@@ -287,8 +287,11 @@ export function insightsView() {
     '<div class="legend"><span><i class="line" style="background:var(--accent)"></i>' + MONTHS[m] + '</span><span><i class="line" style="background:var(--text-3)"></i>' + MONTHS[pm.m] + '</span></div></div>' +
     '<div id="chartPace"></div></section>';
 
+  const topCat = cats.length ? catOf(cats[0].id).label : null;
   const where = '<section class="card"><div class="card-h"><div><h2>Where it went</h2><div class="sub">' + esc(money(now.tout)) + ' across ' + plural(cats.length, 'category', 'categories') + '</div></div></div>' +
-    (cats.length ? cats.map((r) => {
+    (cats.length ? '<div id="spendDonut" class="donut-host"></div>' +
+      '<p class="where-summary">Most went to <b>' + esc(topCat) + '</b> (' + Math.round((cats[0].sum / now.tout) * 100) + '%)' + (cats.length > 1 ? ', then ' + esc(catOf(cats[1].id).label) : '') + '.</p>' : '') +
+    (cats.length ? '<div class="cat-list">' + cats.map((r) => {
       const c = catOf(r.id);
       const open = !!ui.expanded[r.id];
       const rows = open ? sortedTxns(inMonth(state.txns, y, m).filter((x) => x.type === 'out' && x.category === r.id)) : [];
@@ -296,7 +299,7 @@ export function insightsView() {
         '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / now.tout) * 100) + '%</small><span class="chev caret">' + icon('next') + '</span></span>' +
         '<span class="track"><i style="width:' + Math.max(2, (r.sum / cats[0].sum) * 100).toFixed(1) + '%"></i></span></button>' +
         (open ? '<div class="cat-drop">' + rows.map((x) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(x.id) + '"><span class="dr-t">' + esc(x.title) + '</span><span class="dr-d">' + esc(fmtDayHeading(x.date)) + (x.account ? ' · ' + esc(x.account) : '') + '</span><span class="dr-a num">' + esc(money(x.amount)) + '</span></button>').join('') + '</div>' : '');
-    }).join('') : '<p class="muted" style="margin:0">No spending recorded in ' + esc(MONTHS_FULL[m]) + '.</p>') + '</section>';
+    }).join('') + '</div>' : '<p class="muted" style="margin:0">No spending recorded in ' + esc(MONTHS_FULL[m]) + '.</p>') + '</section>';
 
   const bud = '<section class="card"><div class="card-h"><div><h2>Budgets</h2><div class="sub">Monthly limits per category</div></div>' +
     '<button class="btn sm" data-act="budgets">' + icon('target') + (budgets.length ? 'Edit' : 'Set budgets') + '</button></div>' +
@@ -321,6 +324,8 @@ export function insightsView() {
     const code = showCode(), fmt = (v) => fmtMoney(Math.round(v), code).replace(/\.0+$/, '');
     const host = document.getElementById('chartInOut');
     if (host) inOutColumns(host, series.map((s) => ({ label: MONTHS[s.m], full: MONTHS_FULL[s.m] + ' ' + s.y, tin: displayValue(s.tin), tout: displayValue(s.tout) })), fmt, code);
+    const dh = document.getElementById('spendDonut');
+    if (dh) { const code = showCode(); donut(dh, cats.map((r) => ({ label: catOf(r.id).label, value: displayValue(r.sum), color: catOf(r.id).color })), displayValue(now.tout), 'spent', (v) => fmtMoney(Math.round(v), code).replace(/\.0+$/, '')); }
     const ph = document.getElementById('chartPace');
     if (ph) {
       const b = getBudgets(), totalBudget = Object.keys(b).reduce((s, k) => s + b[k], 0);

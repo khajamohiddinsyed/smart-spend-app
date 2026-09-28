@@ -178,3 +178,60 @@ export function paceLines(host, cur, prev, budget, fmt, curCode, monthLabel, pre
 /** Month label helpers for charts. */
 export const shortMonth = (m) => MONTHS[m];
 export const roundDisplay = round2;
+
+/**
+ * A spend-ratio donut. slices: [{ label, value, color }] (largest first). `total` and
+ * `centerLabel` fill the middle. Segments have a 2px surface gap; the top few show a % label.
+ * A hover/focus tooltip names each slice; a table isn't needed because the list beside it is one.
+ */
+export function donut(host, slices, total, centerLabel, fmtValue) {
+  host.innerHTML = '';
+  const data = slices.filter((s) => s.value > 0);
+  if (!data.length || total <= 0) return;
+  const W = 220, H = 220, cx = W / 2, cy = H / 2, R = 96, stroke = 30;
+  const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'donut', role: 'img', 'aria-label': centerLabel + ' ' + fmtValue(total) });
+  const surface = css('--surface') || '#11192b';
+  const circ = 2 * Math.PI * R;
+  const gap = data.length > 1 ? 2 : 0;             // a small surface gap between segments
+  let offset = 0;
+  const segs = [];
+  data.forEach((s, i) => {
+    const frac = s.value / total;
+    const len = Math.max(circ * frac - gap, 0.5);
+    const seg = el('circle', {
+      cx, cy, r: R, fill: 'none', stroke: s.color, 'stroke-width': stroke,
+      'stroke-dasharray': len + ' ' + (circ - len),
+      'stroke-dashoffset': -offset,
+      transform: 'rotate(-90 ' + cx + ' ' + cy + ')',
+      tabindex: '0', role: 'listitem', 'aria-label': s.label + ' ' + fmtValue(s.value) + ' ' + Math.round(frac * 100) + '%'
+    });
+    seg.style.transition = 'opacity .15s';
+    segs.push({ seg, s, frac });
+    svg.appendChild(seg);
+    offset += circ * frac;
+  });
+  // Ring gap ring behind (surface) so segment ends read cleanly
+  svg.insertBefore(el('circle', { cx, cy, r: R, fill: 'none', stroke: surface, 'stroke-width': stroke + 2 }), svg.firstChild);
+  // Center total (the summary)
+  svg.appendChild(el('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', class: 'donut-total' }, fmtValue(total)));
+  svg.appendChild(el('text', { x: cx, y: cy + 18, 'text-anchor': 'middle', class: 'donut-cap' }, centerLabel));
+
+  const tip = document.createElement('div'); tip.className = 'tip';
+  const wrap = document.createElement('div'); wrap.className = 'donut-wrap';
+  wrap.append(svg, tip);
+  host.appendChild(wrap);
+
+  const show = (o) => {
+    segs.forEach((x) => { x.seg.style.opacity = x === o ? '1' : '0.35'; });
+    tip.innerHTML = '';
+    tip.appendChild(tipRow(o.s.color, fmtValue(o.s.value), o.s.label + ' · ' + Math.round(o.frac * 100) + '%'));
+    tip.classList.add('on');
+  };
+  const hide = () => { segs.forEach((x) => { x.seg.style.opacity = '1'; }); tip.classList.remove('on'); };
+  segs.forEach((o) => {
+    o.seg.addEventListener('pointerenter', () => show(o));
+    o.seg.addEventListener('focus', () => show(o));
+    o.seg.addEventListener('pointerleave', hide);
+    o.seg.addEventListener('blur', hide);
+  });
+}
