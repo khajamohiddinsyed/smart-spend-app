@@ -10,6 +10,7 @@ import { describe } from './sync.js';
 import { ui } from './appstate.js';
 import { cur, currencyInfo, fmtMoney } from './currency.js';
 import { icon, catIcon, avatar, money, moneyAlt, moneyCompact, signed, prefs, displayValue, showCode } from './ui.js';
+import { isAdmin } from './auth.js';
 import { inOutColumns, paceLines } from './charts.js';
 
 const monthLabel = (y, m) => MONTHS_FULL[m] + ' ' + y;
@@ -289,9 +290,12 @@ export function insightsView() {
   const where = '<section class="card"><div class="card-h"><div><h2>Where it went</h2><div class="sub">' + esc(money(now.tout)) + ' across ' + plural(cats.length, 'category', 'categories') + '</div></div></div>' +
     (cats.length ? cats.map((r) => {
       const c = catOf(r.id);
-      return '<button class="hbar tap" data-act="cat-view" data-cat="' + esc(r.id) + '"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span><span class="dim" style="font-weight:500;font-size:12px">' + plural(r.n, 'entry', 'entries') + '</span></span>' +
-        '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / now.tout) * 100) + '%</small><span class="chev">' + icon('next') + '</span></span>' +
-        '<span class="track"><i style="width:' + Math.max(2, (r.sum / cats[0].sum) * 100).toFixed(1) + '%"></i></span></button>';
+      const open = !!ui.expanded[r.id];
+      const rows = open ? sortedTxns(inMonth(state.txns, y, m).filter((x) => x.type === 'out' && x.category === r.id)) : [];
+      return '<button class="hbar tap' + (open ? ' open' : '') + '" data-act="cat-toggle" data-cat="' + esc(r.id) + '" aria-expanded="' + open + '"><span class="nm"><i style="background:' + c.color + '"></i><span>' + esc(c.label) + '</span><span class="dim" style="font-weight:500;font-size:12px">' + plural(r.n, 'entry', 'entries') + '</span></span>' +
+        '<span class="vl num">' + esc(money(r.sum)) + '<small>' + Math.round((r.sum / now.tout) * 100) + '%</small><span class="chev caret">' + icon('next') + '</span></span>' +
+        '<span class="track"><i style="width:' + Math.max(2, (r.sum / cats[0].sum) * 100).toFixed(1) + '%"></i></span></button>' +
+        (open ? '<div class="cat-drop">' + rows.map((x) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(x.id) + '"><span class="dr-t">' + esc(x.title) + '</span><span class="dr-d">' + esc(fmtDayHeading(x.date)) + (x.account ? ' · ' + esc(x.account) : '') + '</span><span class="dr-a num">' + esc(money(x.amount)) + '</span></button>').join('') + '</div>' : '');
     }).join('') : '<p class="muted" style="margin:0">No spending recorded in ' + esc(MONTHS_FULL[m]) + '.</p>') + '</section>';
 
   const bud = '<section class="card"><div class="card-h"><div><h2>Budgets</h2><div class="sub">Monthly limits per category</div></div>' +
@@ -362,6 +366,8 @@ export function moreView() {
 
   html += '<div class="section-label">Appearance</div><div class="set-group"><div class="set-row"><span class="set-ico">' + icon('sun') + '</span><span class="set-main"><b>Theme</b></span>' +
     '<div class="seg" style="min-width:210px">' + [['dark', 'Dark'], ['light', 'Light'], ['system', 'Auto']].map(([k, l]) => '<button data-act="theme" data-theme="' + k + '" aria-pressed="' + (prefs.theme === k) + '">' + l + '</button>').join('') + '</div></div></div>';
+
+  if (isAdmin()) html += '<div class="section-label">Admin</div><div class="set-group">' + set('admin', 'spark', 'Manage accounts', 'Users, access and roles') + '</div>';
 
   html += '<div class="section-label">Account</div><div class="set-group">' +
     set('change-password', 'lock', 'Change password', 'Logs out your other devices') +

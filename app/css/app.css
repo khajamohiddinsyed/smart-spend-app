@@ -616,3 +616,13 @@ button.set-row:hover { background: var(--surface-2); }
 .hbar.tap .vl .chev { width: 15px; height: 15px; color: var(--text-3); align-self: center; }
 .filter-banner { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); font-size: 14px; }
 .filter-banner span { flex: 1; color: var(--text-2); } .filter-banner b { color: var(--text); }
+.hbar.tap .caret { transition: transform .18s var(--ease); }
+.hbar.tap.open .caret { transform: rotate(90deg); }
+.cat-drop { display: grid; gap: 2px; margin: 2px 0 10px; padding: 6px 0 2px; border-top: 1px dashed var(--border); animation: view-in .2s var(--ease); }
+.drop-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; padding: 7px 6px; border-radius: 10px; }
+.drop-row:hover { background: var(--surface-2); }
+.drop-row .dr-t { color: var(--text); font-size: 14px; font-weight: 600; }
+.drop-row .dr-d { grid-column: 1; color: var(--text-3); font-size: 12px; }
+.drop-row .dr-a { grid-row: 1 / span 2; align-self: center; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .cat-drop { animation: none; } .hbar.tap .caret { transition: none; } }
+.tag-admin { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; vertical-align: 1px; }

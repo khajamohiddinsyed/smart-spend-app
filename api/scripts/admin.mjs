@@ -5,6 +5,8 @@
 //   npm run admin -- list
 //   npm run admin -- reset  <email>      new recovery code for someone who is locked out
 //   npm run admin -- delete <email>      remove an account and all its entries
+//   npm run admin -- promote <email>     make someone an admin (they get the in-app Admin area)
+//   npm run admin -- demote  <email>     remove someone's admin access
 //
 // Add --local to work on the local development database instead of the live one.
 
@@ -63,13 +65,13 @@ const when = (ms) => (ms ? new Date(ms).toISOString().replace('T', ' ').slice(0,
 function findUser(email) {
   const u = sql(`SELECT id, email, name, currency, alt_currency, created_at,
     (SELECT count(*) FROM records r WHERE r.user_id = users.id AND r.deleted = 0) AS entries,
-    (SELECT max(last_seen) FROM sessions s WHERE s.user_id = users.id) AS last_seen
+    (SELECT max(last_seen) FROM sessions s WHERE s.user_id = users.id) AS last_seen, is_admin
     FROM users WHERE email = ${q(email)}`)[0];
   if (!u) fail('No account with the email ' + email + ' in ' + where + '.');
   return u;
 }
 function describe(u) {
-  return `${u.name} <${u.email}> · ${u.currency}${u.alt_currency ? ' + ' + u.alt_currency : ''} · ${u.entries} entries · joined ${when(u.created_at)} · last active ${when(u.last_seen)}`;
+  return `${u.name} <${u.email}>${u.is_admin ? ' [admin]' : ''} · ${u.currency}${u.alt_currency ? ' + ' + u.alt_currency : ''} · ${u.entries} entries · joined ${when(u.created_at)} · last active ${when(u.last_seen)}`;
 }
 
 async function confirm(question, expected) {
@@ -83,7 +85,7 @@ async function confirm(question, expected) {
 async function list() {
   const rows = sql(`SELECT u.email, u.name, u.currency, u.alt_currency, u.created_at,
     (SELECT count(*) FROM records r WHERE r.user_id = u.id AND r.deleted = 0) AS entries,
-    (SELECT max(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen
+    (SELECT max(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen, u.is_admin
     FROM users u ORDER BY u.created_at`);
   console.log(`${rows.length} account${rows.length === 1 ? '' : 's'} in ${where}\n`);
   rows.forEach((u, i) => console.log(String(i + 1).padStart(3) + '. ' + describe(u)));
@@ -104,6 +106,13 @@ async function reset(email) {
   console.log('email, this code and a new password. All their entries stay; their other devices are logged out.');
 }
 
+async function role(email, makeAdmin) {
+  const u = findUser(email);
+  console.log('Account: ' + describe(u));
+  sql(`UPDATE users SET is_admin = ${makeAdmin ? 1 : 0}, updated_at = ${Date.now()} WHERE id = ${q(u.id)}`);
+  console.log('\n✔ ' + u.email + ' is ' + (makeAdmin ? 'now an admin. They can open Settings → Admin in the app.' : 'no longer an admin.'));
+}
+
 async function remove(email) {
   const u = findUser(email);
   console.log('Account: ' + describe(u));
@@ -116,8 +125,10 @@ async function remove(email) {
 
 if (cmd === 'list') await list();
 else if (cmd === 'reset') await reset(cleanEmail(emailArg));
+else if (cmd === 'promote') await role(cleanEmail(emailArg), true);
+else if (cmd === 'demote') await role(cleanEmail(emailArg), false);
 else if (cmd === 'delete') await remove(cleanEmail(emailArg));
 else {
-  console.log('Smart Spend admin\n\n  npm run admin -- list\n  npm run admin -- reset  <email>\n  npm run admin -- delete <email>\n\nAdd --local for the local database.');
+  console.log('Smart Spend admin\n\n  npm run admin -- list\n  npm run admin -- reset   <email>\n  npm run admin -- promote <email>\n  npm run admin -- demote  <email>\n  npm run admin -- delete  <email>\n\nAdd --local for the local database.');
   process.exit(cmd ? 1 : 0);
 }

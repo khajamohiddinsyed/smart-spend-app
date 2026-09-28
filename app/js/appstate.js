@@ -10,7 +10,8 @@ export const ui = {
   scope: 'month',                   // activity: 'day' | 'month' | 'all'
   filter: 'all',                    // 'all' | 'in' | 'out'
   account: 'all',                   // 'all', an account label, or '' for entries without one
-  category: 'all',                  // 'all' or a category id
+  category: 'all',                  // 'all' or a category id (Activity filter)
+  expanded: {},                     // category id -> true, expanded rows in Insights 'Where it went'
   search: '',
   flash: {},                        // ids to highlight after add/edit
   install: null,                    // deferred install prompt, when the browser offers one
@@ -25,6 +26,7 @@ export function resetScreenState() {
   ui.filter = 'all';
   ui.account = 'all';
   ui.category = 'all';
+  ui.expanded = {};
   ui.search = '';
   ui.flash = {};
 }

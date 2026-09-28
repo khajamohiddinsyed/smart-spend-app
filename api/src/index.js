@@ -235,7 +235,8 @@ const publicUser = (u) => ({
   email: u.email, name: u.name, currency: u.currency, altCurrency: u.alt_currency || null,
   rate: u.rate || null, rateUpdatedAt: u.rate_updated_at || 0, createdAt: u.created_at,
   categories: parseCats(u.categories), categoriesUpdatedAt: u.categories_updated_at || 0,
-  budgets: parseBudgets(u.budgets), budgetsUpdatedAt: u.budgets_updated_at || 0
+  budgets: parseBudgets(u.budgets), budgetsUpdatedAt: u.budgets_updated_at || 0,
+  isAdmin: !!u.is_admin
 });
 
 /* -------------------------------------------------------------- handlers */
@@ -520,6 +521,98 @@ async function aiParse(req, env, u) {
   return { entries, model, usage: out && out.usage || null };
 }
 
+/* --------------------------------------------------------------- admin */
+
+async function requireAdmin(req, env) {
+  const u = await requireUser(req, env);
+  if (!u.is_admin) throw new HttpError(403, 'not_admin', 'This needs an admin account.');
+  return u;
+}
+
+// Sensitive admin actions re-check the admin's own password, so a merely unlocked
+// device can't manage accounts.
+async function adminConfirm(u, authKey) {
+  if (!sameHex(await hmacHex(u.pw_salt, cleanAuthKey(authKey)), u.pw_hash)) throw new HttpError(403, 'wrong_password', 'Your password isn’t right.');
+}
+async function logAdmin(env, actor, action, target, detail) {
+  await env.DB.prepare('INSERT INTO admin_log (id, at, actor_id, actor_email, action, target_id, target_email, detail) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)')
+    .bind(randomHex(12), Date.now(), actor.id, actor.email, action, target ? target.id : null, target ? target.email : null, detail || null).run();
+}
+async function targetByEmail(env, email) {
+  const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?1').bind(cleanEmail(email)).first();
+  if (!u) throw new HttpError(404, 'no_user', 'No account with that email.');
+  return u;
+}
+
+// Proves the admin's password before the client reveals the admin area.
+async function adminUnlock(req, env, u) {
+  await adminConfirm(u, (await readJson(req)).authKey);
+  return { ok: true };
+}
+
+async function adminUsers(req, env, u) {
+  const rows = await env.DB.prepare(
+    `SELECT u.id, u.email, u.name, u.currency, u.alt_currency, u.is_admin, u.created_at,
+       (SELECT count(*) FROM records r WHERE r.user_id = u.id AND r.deleted = 0) AS entries,
+       (SELECT max(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen
+     FROM users u ORDER BY u.created_at`
+  ).all();
+  return { users: (rows.results || []).map((r) => ({
+    id: r.id, email: r.email, name: r.name, currency: r.currency, altCurrency: r.alt_currency || null,
+    isAdmin: !!r.is_admin, entries: r.entries, createdAt: r.created_at, lastSeen: r.last_seen || 0, self: r.id === u.id
+  })) };
+}
+
+async function adminResetUser(req, env, u) {
+  const b = await readJson(req);
+  await adminConfirm(u, b.authKey);
+  const t = await targetByEmail(env, b.email);
+  const recSalt = randomHex(16), recovery = newRecoveryCode();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE users SET rec_salt = ?2, rec_hash = ?3, updated_at = ?4 WHERE id = ?1').bind(t.id, recSalt, await hmacHex(recSalt, normRecovery(recovery)), Date.now()),
+    env.DB.prepare('DELETE FROM attempts WHERE key IN (?1, ?2)').bind('em:recover:' + t.email, 'em:login:' + t.email)
+  ]);
+  await logAdmin(env, u, 'reset-recovery', t, null);
+  return { recoveryCode: recovery, email: t.email };
+}
+
+async function adminRole(req, env, u) {
+  const b = await readJson(req);
+  await adminConfirm(u, b.authKey);
+  const makeAdmin = !!b.admin;
+  const t = await targetByEmail(env, b.email);
+  if (t.id === u.id && !makeAdmin) throw new HttpError(400, 'self_demote', 'You can’t remove your own admin access. Ask another admin to do it.');
+  await env.DB.prepare('UPDATE users SET is_admin = ?2, updated_at = ?3 WHERE id = ?1').bind(t.id, makeAdmin ? 1 : 0, Date.now()).run();
+  await logAdmin(env, u, makeAdmin ? 'grant-admin' : 'revoke-admin', t, null);
+  return { ok: true };
+}
+
+async function adminDeleteUser(req, env, u) {
+  const b = await readJson(req);
+  await adminConfirm(u, b.authKey);
+  const t = await targetByEmail(env, b.email);
+  if (t.id === u.id) throw new HttpError(400, 'self_delete', 'Delete your own account from Settings, not from here.');
+  const n = (((await env.DB.prepare('SELECT count(*) n FROM records WHERE user_id = ?1').bind(t.id).first()) || {}).n) || 0;
+  await logAdmin(env, u, 'delete-account', t, n + ' entries');
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM records WHERE user_id = ?1').bind(t.id),
+    env.DB.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(t.id),
+    env.DB.prepare('DELETE FROM users WHERE id = ?1').bind(t.id)
+  ]);
+  return { ok: true };
+}
+
+// Full read access to a user's entries (an explicit choice for this deployment).
+async function adminEntries(req, env, u) {
+  const id = new URL(req.url).searchParams.get('userId') || '';
+  const t = await env.DB.prepare('SELECT id, email, name FROM users WHERE id = ?1').bind(id).first();
+  if (!t) throw new HttpError(404, 'no_user', 'No such account.');
+  const rows = await env.DB.prepare(
+    'SELECT data FROM records WHERE user_id = ?1 AND deleted = 0 ORDER BY seq DESC LIMIT 2000').bind(id).all();
+  await logAdmin(env, u, 'view-entries', t, null);
+  return { user: { email: t.email, name: t.name }, records: (rows.results || []).map((r) => JSON.parse(r.data)) };
+}
+
 /* ---------------------------------------------------------------- router */
 
 const ROUTES = {
@@ -534,6 +627,12 @@ const ROUTES = {
   'POST /api/recovery-code': { auth: true, fn: newRecovery },
   'POST /api/sync': { auth: true, fn: sync },
   'POST /api/ai/parse': { auth: true, fn: aiParse },
+  'POST /api/admin/unlock': { auth: true, fn: adminUnlock },
+  'GET /api/admin/users': { admin: true, fn: adminUsers },
+  'POST /api/admin/reset': { admin: true, fn: adminResetUser },
+  'POST /api/admin/role': { admin: true, fn: adminRole },
+  'DELETE /api/admin/user': { admin: true, fn: adminDeleteUser },
+  'GET /api/admin/entries': { admin: true, fn: adminEntries },
   'GET /api/health': { fn: async () => ({ ok: true }) }
 };
 
@@ -546,7 +645,7 @@ export default {
       if (!route) throw new HttpError(404, 'not_found', 'Not found.');
       const origin = req.headers.get('Origin');
       if (origin && !corsHeaders(req, env)['Access-Control-Allow-Origin']) throw new HttpError(403, 'origin', 'This site isn’t allowed to use the API.');
-      const user = route.auth ? await requireUser(req, env) : null;
+      const user = route.admin ? await requireAdmin(req, env) : route.auth ? await requireUser(req, env) : null;
       return json(req, env, 200, await route.fn(req, env, user));
     } catch (e) {
       if (e instanceof HttpError) return json(req, env, e.status, { error: e.code, message: e.message });

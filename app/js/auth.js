@@ -136,6 +136,16 @@ export async function newRecoveryCode(password) {
   return (await api('POST', '/api/recovery-code', { authKey: await deriveAuthKey(account.email, password) })).recoveryCode;
 }
 
+export const isAdmin = () => !!(account.user && account.user.isAdmin);
+
+/* ---------- admin (only works for admin accounts; server enforces it) ---------- */
+export async function adminUnlock(password) { await api('POST', '/api/admin/unlock', { authKey: await deriveAuthKey(account.email, password) }); return true; }
+export async function adminUsers() { return (await api('GET', '/api/admin/users')).users; }
+export async function adminEntries(userId) { return api('GET', '/api/admin/entries?userId=' + encodeURIComponent(userId)); }
+export async function adminReset(email, password) { return (await api('POST', '/api/admin/reset', { email, authKey: await deriveAuthKey(account.email, password) })).recoveryCode; }
+export async function adminSetRole(email, admin, password) { return api('POST', '/api/admin/role', { email, admin, authKey: await deriveAuthKey(account.email, password) }); }
+export async function adminDeleteUser(email, password) { return api('DELETE', '/api/admin/user', { email, authKey: await deriveAuthKey(account.email, password) }); }
+
 export async function deleteAccount(password) {
   await api('DELETE', '/api/me', { authKey: await deriveAuthKey(account.email, password) });
   forgetSession();

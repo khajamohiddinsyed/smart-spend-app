@@ -6,7 +6,8 @@ import { parseInput } from './parser.js';
 import {
   state, addItems, updateTxn, deleteTxn, restoreSnapshot, getBudgets, writeBudgets, readBackup, applyBackup, cleanAccount, knownAccounts, recategorize
 } from './ledger.js';
-import { account, api, signedIn, updateAccount, changePassword, newRecoveryCode, deleteAccount, MIN_PASSWORD } from './auth.js';
+import { account, api, signedIn, updateAccount, changePassword, newRecoveryCode, deleteAccount, MIN_PASSWORD,
+  adminUnlock, adminUsers, adminEntries, adminReset, adminSetRole, adminDeleteUser, userColor } from './auth.js';
 import { cur, CURRENCIES, currencyInfo, suggestedRate, fmtMoney } from './currency.js';
 import { ui } from './appstate.js';
 import { icon, catIcon, openSheet, updateSheet, closeSheet, toast, money, moneyAlt, armed, prefs } from './ui.js';
@@ -528,4 +529,92 @@ export function openCategories(editId) {
       openCategories();
     } catch (e) { btn.disabled = false; msg(e.code === 'offline' ? 'You’re offline. Try again when you’re connected.' : e.message); }
   }
+}
+
+/* =============================== ADMIN =============================== */
+
+// A separate area for admins: manage accounts, nothing to do with the money UI.
+// Opening it re-checks the admin's password; the server enforces admin on every call.
+let adminPw = null;
+
+export function openAdmin() {
+  adminPw = null;
+  openSheet({
+    title: 'Admin', body: '<form class="form" id="admForm" novalidate><p class="help" style="margin:0">Enter your password to open the admin area.</p>' +
+      '<input class="input" id="admPass" type="password" autocomplete="current-password" data-autofocus><div class="msg" id="admMsg" role="alert"></div></form>',
+    foot: '<button class="btn" data-close>Cancel</button><button class="btn primary" data-adm="unlock">Continue</button>',
+    submit: () => unlock(),
+    click: (e, t) => { if (t.closest('[data-adm="unlock"]')) unlock(); }
+  });
+  async function unlock() {
+    const pw = $('#admPass').value;
+    if (!pw) return;
+    const btn = document.querySelector('[data-adm="unlock"]'); btn.disabled = true;
+    try { await adminUnlock(pw); adminPw = pw; adminList(); }
+    catch (e) { btn.disabled = false; $('#admMsg').textContent = e.code === 'wrong_password' ? 'That password isn’t right.' : e.message; }
+  }
+}
+
+function adminUserRow(u) {
+  return '<button class="set-row" data-adm-user="' + esc(u.email) + '"><span class="av" style="width:36px;height:36px;font-size:15px;background:' + userColor(u.email) + '">' + esc((u.name || u.email).charAt(0).toUpperCase()) + '</span>' +
+    '<span class="set-main"><b>' + esc(u.name) + (u.isAdmin ? ' <span class="tag-admin">admin</span>' : '') + (u.self ? ' <span class="dim">(you)</span>' : '') + '</b><span>' + esc(u.email) + ' · ' + u.entries + ' entries</span></span><span class="chev">' + icon('next') + '</span></button>';
+}
+
+async function adminList() {
+  updateSheet('<div class="empty" style="padding:22px">Loading…</div>', '<button class="btn" data-close>Close</button>');
+  let users;
+  try { users = await adminUsers(); } catch (e) { updateSheet('<div class="empty" style="padding:22px">' + esc(e.message) + '</div>'); return; }
+  const body = '<p class="help" style="margin:0 0 12px">' + plural(users.length, 'account') + '. Tap one to manage it.</p>' +
+    '<div class="set-group">' + users.map(adminUserRow).join('') + '</div>' +
+    '<p class="help" style="margin-top:12px">You can read entries, reset access, make someone an admin, or delete an account. Every action is logged.</p>';
+  openSheet({
+    title: 'Admin · accounts', body, foot: '<button class="btn" data-close>Close</button>',
+    click: (e, t) => { const b = t.closest('[data-adm-user]'); if (b) adminUser(users.find((x) => x.email === b.getAttribute('data-adm-user'))); }
+  });
+}
+
+function adminUser(u) {
+  const row = (act, ico, title, sub, danger) => '<button class="set-row' + (danger ? ' danger' : '') + '" data-au="' + act + '"><span class="set-ico">' + icon(ico) + '</span><span class="set-main"><b>' + title + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</span><span class="chev">' + icon('next') + '</span></button>';
+  const body = '<button class="g-back" data-au="back">' + icon('back') + 'All accounts</button>' +
+    '<div class="set-group" style="margin:10px 0"><div class="set-row"><span class="av" style="width:40px;height:40px;background:' + userColor(u.email) + '">' + esc((u.name || u.email).charAt(0).toUpperCase()) + '</span><span class="set-main"><b>' + esc(u.name) + '</b><span>' + esc(u.email) + '</span></span></div></div>' +
+    '<div class="set-group">' + row('entries', 'activity', 'View entries', u.entries + ' entries') +
+      row('reset', 'lock', 'Reset recovery code', 'Hand them a new code to get back in') +
+      row('role', u.isAdmin ? 'lock' : 'spark', u.isAdmin ? 'Remove admin' : 'Make admin', u.self ? 'This is you' : '') +
+      (u.self ? '' : row('delete', 'trash', 'Delete account', 'Removes the account and all entries', true)) + '</div>' +
+    '<div class="msg" id="auMsg" role="alert"></div>';
+  openSheet({
+    title: esc(u.name), body, foot: '<button class="btn" data-adm="back">All accounts</button>',
+    click: (e, t) => {
+      if (t.closest('[data-adm="back"]') || t.closest('[data-au="back"]')) { adminList(); return; }
+      const b = t.closest('[data-au]'); if (!b) return;
+      const a = b.getAttribute('data-au');
+      if (a === 'entries') adminViewEntries(u);
+      if (a === 'reset') adminDo(u, b, () => adminReset(u.email, adminPw).then((code) =>
+        updateSheet('<button class="g-back" data-au="back">' + icon('back') + 'All accounts</button><h3 style="margin:10px 0">New recovery code for ' + esc(u.name) + '</h3>' +
+          '<p class="help">Send it privately. They open <b>Forgot your password?</b>, enter their email, this code and a new password.</p><div class="rc-code mono">' + esc(code) + '</div>', '<button class="btn primary" data-adm="back">Done</button>')));
+      if (a === 'role') adminDo(u, b, () => adminSetRole(u.email, !u.isAdmin, adminPw).then(() => { toast((u.isAdmin ? 'Removed admin from ' : 'Made admin: ') + u.name, { tone: 'ok' }); adminList(); }));
+      if (a === 'delete' && armed(b, 'Tap again to delete for good')) adminDo(u, b, () => adminDeleteUser(u.email, adminPw).then(() => { toast('Deleted ' + u.name, { tone: 'ok' }); adminList(); }));
+    }
+  });
+}
+
+async function adminDo(u, btn, fn) {
+  btn.disabled = true;
+  try { await fn(); }
+  catch (e) { btn.disabled = false; const m = $('#auMsg'); if (m) m.textContent = e.code === 'wrong_password' ? 'Your password check expired. Reopen Admin.' : e.message; }
+}
+
+async function adminViewEntries(u) {
+  updateSheet('<div class="empty" style="padding:22px">Loading ' + esc(u.name) + '’s entries…</div>', '<button class="btn" data-adm="back">Back</button>');
+  let data;
+  try { data = await adminEntries(u.id); } catch (e) { updateSheet('<div class="empty" style="padding:22px">' + esc(e.message) + '</div>'); return; }
+  const rows = data.records.map((r) => '<div class="drop-row" style="cursor:default"><span class="dr-t">' + esc(r.title) + '</span><span class="dr-d">' + esc(catOf(r.category).label) + ' · ' + esc(r.date) + (r.account ? ' · ' + esc(r.account) : '') + '</span><span class="dr-a num">' + (r.type === 'in' ? '+' : '−') + esc(String(r.amount)) + '</span></div>').join('');
+  openSheet({
+    title: esc(u.name) + ' · entries',
+    body: '<button class="g-back" data-adm-user="' + esc(u.email) + '">' + icon('back') + 'Back</button>' +
+      '<p class="help" style="margin:10px 0">' + plural(data.records.length, 'entry', 'entries') + '. Amounts are in each account’s own currency.</p>' +
+      (rows || '<div class="empty" style="padding:22px">No entries.</div>'),
+    foot: '<button class="btn" data-close>Close</button>',
+    click: (e, t) => { const b = t.closest('[data-adm-user]'); if (b) adminUser(u); }
+  });
 }

@@ -3,7 +3,7 @@
 import { $, esc, on, todayISO, fromISO, fmtDateLong, addMonths, MONTHS_FULL, haptic, reducedMotion, pad, plural } from './core.js';
 import { state, load, reset, setRate, loadDemo, clearAll, restoreSnapshot, buildBackupPayload, removeProfileData, writeBudgets } from './ledger.js';
 import { describe, syncNow, scheduleSync, cancelTimers, pendingCount, forgetSyncState } from './sync.js';
-import { account, loadSession, signedIn, logout, refreshUser, userColor } from './auth.js';
+import { account, loadSession, signedIn, logout, refreshUser, userColor, isAdmin } from './auth.js';
 import { cur, setCurrencies } from './currency.js';
 import { setCustomCategories } from './categories.js';
 import { ui, resetScreenState } from './appstate.js';
@@ -11,7 +11,7 @@ import { icon, avatar, toast, initToast, initSheet, openSheet, closeSheet, sheet
 import { homeView, activityView, activityListHtml, activityCounts, insightsView, moreView } from './views.js';
 import {
   openQuickAdd, openEdit, removeWithUndo, openBudgets, openRestore, openCurrencySettings, openChangePassword,
-  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp, openCategories
+  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp, openCategories, openAdmin
 } from './sheets.js';
 import { initGate, show as showGate, gateOpen, close as closeGate } from './gate.js';
 
@@ -217,6 +217,8 @@ function onViewClick(e) {
     case 'scope': ui.scope = t.getAttribute('data-scope'); render(); break;
     case 'filter': ui.filter = t.getAttribute('data-filter'); render(); break;
     case 'acct': ui.account = t.getAttribute('data-acct'); render(); break;
+    case 'drop-edit': openEdit(t.getAttribute('data-id')); break;
+    case 'cat-toggle': { const id = t.getAttribute('data-cat'); ui.expanded[id] = !ui.expanded[id]; render(); break; }
     case 'cat-view': ui.category = t.getAttribute('data-cat'); ui.account = 'all'; ui.filter = 'all'; ui.search = ''; if (ui.scope === 'day') ui.scope = 'month'; go('activity', { force: true }); break;
     case 'cat-clear': ui.category = 'all'; render(); break;
     case 'budgets': openBudgets(); break;
@@ -225,6 +227,7 @@ function onViewClick(e) {
     case 'typing-help': openTypingHelp(); break;
     case 'currency': openCurrencySettings(); break;
     case 'categories': openCategories(); break;
+    case 'admin': openAdmin(); break;
     case 'change-password': openChangePassword(); break;
     case 'recovery-code': openNewRecoveryCode(); break;
     case 'delete-account': openDeleteAccount(() => afterAccountDeleted()); break;

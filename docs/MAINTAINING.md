@@ -15,7 +15,9 @@ These run from the maintainer's computer with the maintainer's Cloudflare login 
 ```bash
 npm run admin -- list                  # everyone who has signed up, with entry counts
 npm run admin -- reset  <email>        # locked out: makes a new recovery code
-npm run admin -- delete <email>        # removes the account and every entry
+npm run admin -- delete  <email>       # removes the account and every entry
+npm run admin -- promote <email>       # make someone an admin (in-app Admin area)
+npm run admin -- demote  <email>       # remove admin access
 ```
 
 - **Forgot password and lost the recovery code:** first make sure the request really comes from them (call them, for instance). Then run `reset` and send them the printed code privately. They tap **Forgot your password?**, enter their email, the code and a new password. Their entries aren't touched, the old code stops working, their other devices are logged out, and any login lockout is cleared.
