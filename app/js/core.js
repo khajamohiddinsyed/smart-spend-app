@@ -1,6 +1,6 @@
 // Shared helpers: DOM, dates, money, storage, hashing. No app state lives here.
 
-export const APP_VERSION = '3.0.0';
+export const APP_VERSION = '3.0.1';
 
 /* ---------- DOM ---------- */
 export const $ = (sel, root = document) => root.querySelector(sel);

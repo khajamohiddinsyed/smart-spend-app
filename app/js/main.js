@@ -326,8 +326,11 @@ function initPWA() {
         if (w) w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w); });
       });
     }).catch(() => { /* offline support is a bonus, never a blocker */ });
+    // Reload only when a new version replaces a running one (after "Update"), never on the
+    // first visit, when the worker takes control mid-sign-up.
+    const hadController = !!navigator.serviceWorker.controller;
     let reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
   }
 }
 
