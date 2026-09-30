@@ -525,13 +525,14 @@ async function aiParse(req, env, u) {
 /**
  * POST /api/ai/ask { question, today } -> { spec }
  * The AI only turns a plain question into a filter; the app computes the number from the
- * ledger, so totals are always exact. spec = { metric, category, categoryLabel, period, from, to,
- * account, cardOnly, type }.
+ * ledger, so totals are always exact. spec = { metric, flow, category, categoryLabel, period, from,
+ * to, account, cardOnly, groupBy }.
  */
 const ASK_PER_DAY = 60;
 const PERIODS = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'all', 'range'];
 const METRICS = ['spent', 'received', 'net', 'count', 'min', 'max', 'average'];
 const FLOWS = ['in', 'out', 'both'];
+const GROUPS = ['day', 'week', 'month', 'year'];
 
 function askPrompt(today, cats) {
   return [
@@ -546,7 +547,8 @@ function askPrompt(today, cats) {
     '- from,to: "YYYY-MM-DD" only when period is "range", else null.',
     '- account: text to match an account or card name (e.g. "HDFC", "8432"), or null.',
     '- cardOnly: true if the question is about credit-card spending in general, else false.',
-    'Reply exactly like: {"metric":"spent","flow":"out","category":"Dining","period":"this_week","from":null,"to":null,"account":null,"cardOnly":false}'
+    '- groupBy: "day", "week", "month" or "year" when the question compares whole periods rather than single entries (e.g. "highest amount spent in one day" -> "day", "most I spent in a month" -> "month", "average per day" -> "day"); else null. Used with min/max/average.',
+    'Reply exactly like: {"metric":"max","flow":"out","category":null,"period":"all","from":null,"to":null,"account":null,"cardOnly":false,"groupBy":"day"}'
   ].join('\n');
 }
 
@@ -583,8 +585,11 @@ async function aiAsk(req, env, u) {
     from: period === 'range' ? iso(d.from) : null,
     to: period === 'range' ? iso(d.to) : null,
     account: d.account ? String(d.account).replace(/[<>]/g, '').trim().slice(0, 40) : null,
-    cardOnly: !!d.cardOnly
+    cardOnly: !!d.cardOnly,
+    groupBy: GROUPS.includes(d.groupBy) ? d.groupBy : null
   };
+  // Grouping only makes sense for the compare-periods metrics; "spent/received per day" means the average.
+  if (spec.groupBy && spec.metric !== 'min' && spec.metric !== 'max' && spec.metric !== 'average') spec.metric = 'average';
   spec.categoryLabel = spec.category ? (cats.find((c) => c.id === spec.category) || {}).label || null : null;
   return { spec, model: env.AI_MODEL || AI_MODEL };
 }

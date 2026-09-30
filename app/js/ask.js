@@ -3,7 +3,7 @@
 // AI is only a fallback that turns an unusual question into the same filter. The NUMBER is always
 // computed here from the ledger, never by the AI, so it's exact.
 
-import { fromISO, toISO, todayDate, todayISO, round2 } from './core.js';
+import { fromISO, toISO, todayDate, todayISO, round2, fmtDate, MONTHS_FULL } from './core.js';
 import { state, isCard } from './ledger.js';
 import { CATEGORIES, CAT_BY_ID, catOf, normText } from './categories.js';
 
@@ -32,6 +32,22 @@ const PERIOD_LABEL = {
 
 /* ---------- run a query against the ledger ---------- */
 
+const byDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt);
+
+// Bucket key/label for "per day / per week / per month / per year" questions.
+function groupKey(dateISO, unit) {
+  if (unit === 'month') return dateISO.slice(0, 7);
+  if (unit === 'year') return dateISO.slice(0, 4);
+  if (unit === 'week') return toISO(startOfWeek(fromISO(dateISO)));
+  return dateISO; // day
+}
+function groupLabel(key, unit) {
+  if (unit === 'month') { const p = key.split('-'); return MONTHS_FULL[+p[1] - 1] + ' ' + p[0]; }
+  if (unit === 'year') return key;
+  if (unit === 'week') { const e = new Date(fromISO(key)); e.setDate(e.getDate() + 6); return fmtDate(key) + ' – ' + fmtDate(toISO(e)); }
+  return fmtDate(key); // day, e.g. "Sep 24, 2026"
+}
+
 export function runQuery(spec) {
   const { from, to } = periodRange(spec.period, spec.from, spec.to);
   const rows = state.txns.filter((t) => {
@@ -45,19 +61,41 @@ export function runQuery(spec) {
   const sum = (l) => round2(l.reduce((s, t) => s + t.amount, 0));
   // Which side the min/max/average looks at: money in for received-type questions, else money out.
   const flow = spec.flow === 'in' ? inn : spec.flow === 'both' ? rows : out;
-  const amts = flow.map((t) => t.amount);
-  const min = amts.length ? round2(Math.min.apply(null, amts)) : 0;
-  const max = amts.length ? round2(Math.max.apply(null, amts)) : 0;
-  const average = amts.length ? round2(sum(flow) / flow.length) : 0;
+
+  // When grouping ("highest in one day"), each day/week/month is one data point: sum its entries,
+  // then min/max/average compare whole periods instead of single entries.
+  const grp = spec.groupBy;
+  let buckets = null, bucket = null, series = flow.map((t) => t.amount);
+  if (grp) {
+    const map = new Map();
+    flow.forEach((t) => {
+      const k = groupKey(t.date, grp);
+      let b = map.get(k);
+      if (!b) { b = { key: k, label: groupLabel(k, grp), amount: 0, count: 0, rows: [] }; map.set(k, b); }
+      b.amount += t.amount; b.count++; b.rows.push(t);
+    });
+    buckets = Array.from(map.values());
+    buckets.forEach((b) => { b.amount = round2(b.amount); b.rows.sort(byDateDesc); });
+    buckets.sort((a, b) => b.amount - a.amount);
+    series = buckets.map((b) => b.amount);
+    if (buckets.length) bucket = spec.metric === 'min' ? buckets[buckets.length - 1] : buckets[0];
+  }
+
+  const min = series.length ? round2(Math.min.apply(null, series)) : 0;
+  const max = series.length ? round2(Math.max.apply(null, series)) : 0;
+  const average = series.length ? round2(series.reduce((s, n) => s + n, 0) / series.length) : 0;
+
   var ordered;
-  if (spec.metric === 'min') ordered = flow.slice().sort((a, b) => a.amount - b.amount);
+  if (grp) ordered = bucket ? bucket.rows.slice() : [];   // show the winning period's own entries
+  else if (spec.metric === 'min') ordered = flow.slice().sort((a, b) => a.amount - b.amount);
   else if (spec.metric === 'max') ordered = flow.slice().sort((a, b) => b.amount - a.amount);
   else ordered = (spec.metric === 'received' ? inn : spec.metric === 'net' ? rows : spec.metric === 'average' ? flow : out).slice()
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt));
+    .sort(byDateDesc);
   return {
     spec, from, to,
     spent: sum(out), received: sum(inn), net: round2(sum(inn) - sum(out)),
     min, max, average, flowCount: flow.length,
+    buckets, bucket,
     count: spec.metric === 'received' ? inn.length : spec.metric === 'net' ? rows.length : flow.length,
     rows: ordered
   };
@@ -88,6 +126,15 @@ function matchPeriod(q) {
   return null;
 }
 
+// "in one day", "per month" … — group the entries into whole days/weeks/months and compare those.
+function matchGroup(q) {
+  if (/\b(per day|each day|a day|one day|single day|in a day|by day|daily)\b/.test(q)) return 'day';
+  if (/\b(per week|each week|a week|in a week|by week)\b/.test(q)) return 'week';
+  if (/\b(per month|each month|a month|in a month|by month)\b/.test(q)) return 'month';
+  if (/\b(per year|each year|a year|in a year|by year|annually)\b/.test(q)) return 'year';
+  return null;
+}
+
 function matchCategory(q) {
   const n = ' ' + normText(q) + ' ';
   if (/ food | drink | drinks | dining | restaurant | coffee | eat /.test(n)) return 'Dining';
@@ -106,6 +153,7 @@ export function parseQuestionLocal(q) {
   const s = ' ' + q.toLowerCase() + ' ';
   const period = matchPeriod(s);
   const category = matchCategory(s);
+  const group = matchGroup(s);
   const cardOnly = /\b(card|credit card|on cards?)\b/i.test(s) && !/\d{4}/.test(s);
   const acctMatch = /\b(\d{4})\b/.exec(s);
   const isIn = WEEK.received.test(s);
@@ -113,15 +161,19 @@ export function parseQuestionLocal(q) {
   if (WEEK.net.test(s)) metric = 'net';
   if (WEEK.count.test(s)) metric = 'count';
   if (/\b(lowest|smallest|cheapest|least|minimum|min)\b/.test(s)) metric = 'min';
-  else if (/\b(highest|largest|biggest|most expensive|dearest|maximum|max|priciest|costliest)\b/.test(s)) metric = 'max';
+  else if (/\b(highest|largest|biggest|most expensive|dearest|maximum|max|priciest|costliest)\b/.test(s) || /\bmost (?:i|money)?\s*(?:spen|paid|pay|cost)/.test(s)) metric = 'max';
   else if (/\b(average|avg|mean|on average|typical)\b/.test(s)) metric = 'average';
   const flow = isIn ? 'in' : 'out';
-  // Need at least a period or a category to be confident it's a spending question.
-  if (!period && !category && !cardOnly && !acctMatch && !WEEK.spent.test(s) && metric === 'spent') return null;
-  if (!period && !category && !cardOnly && !acctMatch) return null;
+  // "how much per day" with no high/low word is really "average per day".
+  const groupBy = group && (metric === 'min' || metric === 'max' || metric === 'average') ? group
+    : group && (metric === 'spent' || metric === 'received') ? group : null;
+  if (groupBy && metric !== 'min' && metric !== 'max') metric = 'average';
+  // Need at least a period, category, card, account or a grouping to be confident it's a spending question.
+  if (!period && !category && !cardOnly && !acctMatch && !groupBy && !WEEK.spent.test(s) && metric === 'spent') return null;
+  if (!period && !category && !cardOnly && !acctMatch && !groupBy) return null;
   return {
     metric, flow, category, categoryLabel: category ? catOf(category).label : null,
-    period: period || 'this_month', from: null, to: null,
-    account: acctMatch ? acctMatch[1] : null, cardOnly
+    period: period || (groupBy ? 'all' : 'this_month'), from: null, to: null,
+    account: acctMatch ? acctMatch[1] : null, cardOnly, groupBy
   };
 }

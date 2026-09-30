@@ -666,13 +666,28 @@ function askExamples() {
   return ['How much on food & drinks this week?', 'What did I spend today?', 'Spending on cards this month', c ? 'How much on ' + c.label + ' this month?' : 'How much on groceries last month?', 'How much did I receive this month?'];
 }
 
+const GROUP_NOUN = { day: 'day', week: 'week', month: 'month', year: 'year' };
+
 function askAnswerHtml(r, viaAI) {
   const s = r.spec;
   let what = describeSpec(s);
   const inWord = s.flow === 'in' || s.metric === 'received';
   if (s.metric === 'min' || s.metric === 'max' || s.metric === 'average') what = what.replace(/\bin total\b/, '').replace(/\s+/g, ' ').trim();
-  let head;
-  if (s.metric === 'count') head = '<b>' + plural(r.count, 'entry', 'entries') + '</b> ' + esc(what || (inWord ? 'received' : 'spent'));
+  const grpNoun = s.groupBy ? (GROUP_NOUN[s.groupBy] || 'day') : null;
+  const inOut = inWord ? 'received' : 'spent';
+  let head, bodyRows = '', subCount = r.rows.length;
+  if (grpNoun && (s.metric === 'min' || s.metric === 'max')) {
+    const b = r.bucket;
+    if (!b) head = 'No matching entries' + (what ? ' ' + esc(what) : '') + '.';
+    else head = 'Your ' + (s.metric === 'min' ? 'lowest' : 'highest') + '-spending ' + grpNoun + (what ? ' ' + esc(what) : '') +
+      ' was <b>' + esc(money(b.amount)) + '</b> · ' + esc(b.label) + ' (' + plural(b.count, 'entry', 'entries') + ')';
+  } else if (grpNoun && s.metric === 'average') {
+    const days = (r.buckets || []).length;
+    head = 'On average you ' + inOut + ' <b>' + esc(money(r.average)) + '</b> per ' + grpNoun + (what ? ' ' + esc(what) : '') +
+      ' (across ' + plural(days, grpNoun) + ')';
+    bodyRows = (r.buckets || []).slice(0, 6).map((b) => '<div class="drop-row" style="cursor:default"><span class="dr-t">' + esc(b.label) + '</span><span class="dr-d">' + esc(plural(b.count, 'entry', 'entries')) + '</span><span class="dr-a num">' + esc(money(b.amount)) + '</span></div>').join('');
+    subCount = days;
+  } else if (s.metric === 'count') head = '<b>' + plural(r.count, 'entry', 'entries') + '</b> ' + esc(what || inOut);
   else if (s.metric === 'min' || s.metric === 'max') {
     const top = r.rows[0];
     if (!top) head = 'No matching entries' + (what ? ' ' + esc(what) : '') + '.';
@@ -683,9 +698,11 @@ function askAnswerHtml(r, viaAI) {
     const verb = s.metric === 'received' ? 'received' : s.metric === 'net' ? 'net' : 'spent';
     head = 'You ' + verb + ' <b>' + esc(money(r[s.metric])) + '</b> ' + esc(what || verb);
   }
-  const rows = r.rows.slice(0, 6).map((t) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(t.id) + '"><span class="dr-t">' + esc(t.title) + '</span><span class="dr-d">' + esc(catOf(t.category).label) + ' · ' + esc(t.date) + (t.account ? ' · ' + esc(t.account) : '') + '</span><span class="dr-a num">' + esc(money(t.amount)) + '</span></button>').join('');
+  if (!bodyRows) bodyRows = r.rows.slice(0, 6).map((t) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(t.id) + '"><span class="dr-t">' + esc(t.title) + '</span><span class="dr-d">' + esc(catOf(t.category).label) + ' · ' + esc(t.date) + (t.account ? ' · ' + esc(t.account) : '') + '</span><span class="dr-a num">' + esc(money(t.amount)) + '</span></button>').join('');
+  const isGroupAvg = grpNoun && s.metric === 'average';
+  const subLabel = isGroupAvg ? plural(subCount, grpNoun) : plural(subCount, 'entry', 'entries');
   return '<div class="ask-answer"><div class="ask-head">' + head + '</div>' +
-    (r.rows.length ? '<div class="ask-sub">' + plural(r.rows.length, 'entry', 'entries') + (r.rows.length > 6 ? ' · showing 6' : '') + '</div><div class="cat-drop" style="border:0">' + rows + '</div>' : '<div class="ask-sub">No matching entries.</div>') +
-    (r.rows.length ? '<button class="btn sm block" data-ask="all">See all in Activity</button>' : '') +
+    (bodyRows ? '<div class="ask-sub">' + subLabel + (subCount > 6 ? ' · showing 6' : '') + '</div><div class="cat-drop" style="border:0">' + bodyRows + '</div>' : '<div class="ask-sub">No matching entries.</div>') +
+    (r.rows.length && !s.groupBy ? '<button class="btn sm block" data-ask="all">See all in Activity</button>' : '') +
     (viaAI ? '<div class="ask-ai">✨ Understood by AI</div>' : '') + '</div>';
 }
