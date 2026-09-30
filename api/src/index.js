@@ -18,7 +18,7 @@ export const CURRENCIES = ['SAR', 'INR', 'AED', 'QAR', 'KWD', 'BHD', 'OMR', 'EGP
 const CATEGORIES = ['Groceries', 'Dining', 'Transport', 'Utilities', 'Cash', 'Shopping', 'Healthcare', 'Salary', 'Freelance', 'General'];
 const CUSTOM_ID = /^c_[a-z0-9]{4,16}$/;
 const MAX_CUSTOM = 30;
-const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';   // strongest free model; usage is tiny at this scale
 const AI_PER_DAY = 40;                 // per person, so one heavy user can't use up the shared free allowance
 
 /* ------------------------------------------------------------------ http */
@@ -530,7 +530,8 @@ async function aiParse(req, env, u) {
  */
 const ASK_PER_DAY = 60;
 const PERIODS = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'all', 'range'];
-const METRICS = ['spent', 'received', 'net', 'count'];
+const METRICS = ['spent', 'received', 'net', 'count', 'min', 'max', 'average'];
+const FLOWS = ['in', 'out', 'both'];
 
 function askPrompt(today, cats) {
   return [
@@ -538,13 +539,14 @@ function askPrompt(today, cats) {
     'Today is ' + today + '.',
     'Categories (use the id): ' + cats.map((c) => c.id + '=' + c.label).join('; ') + '.',
     'Fields:',
-    '- metric: "spent" (money out), "received" (money in), "net" (in minus out), or "count" (how many entries).',
+    '- metric: "spent" (total money out), "received" (total money in), "net" (in minus out), "count" (how many entries), "min" (the single lowest/cheapest one), "max" (the single highest/biggest/most expensive one), or "average" (the mean per entry).',
+    '- flow: "out" for spending, "in" for money received/added — used by min/max/average.',
     '- category: a category id from the list, or null for all.',
     '- period: one of today, yesterday, this_week, last_week, this_month, last_month, this_year, all, range.',
     '- from,to: "YYYY-MM-DD" only when period is "range", else null.',
     '- account: text to match an account or card name (e.g. "HDFC", "8432"), or null.',
     '- cardOnly: true if the question is about credit-card spending in general, else false.',
-    'Reply exactly like: {"metric":"spent","category":"Dining","period":"this_week","from":null,"to":null,"account":null,"cardOnly":false}'
+    'Reply exactly like: {"metric":"spent","flow":"out","category":"Dining","period":"this_week","from":null,"to":null,"account":null,"cardOnly":false}'
   ].join('\n');
 }
 
@@ -572,8 +574,10 @@ async function aiAsk(req, env, u) {
   if (!d) throw new HttpError(422, 'no_spec', 'I couldn’t understand that question. Try naming an amount of time and a category, like “food this week”.');
   const period = PERIODS.includes(d.period) ? d.period : 'this_month';
   const iso = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  const metric = METRICS.includes(d.metric) ? d.metric : 'spent';
   const spec = {
-    metric: METRICS.includes(d.metric) ? d.metric : 'spent',
+    metric,
+    flow: FLOWS.includes(d.flow) ? d.flow : (metric === 'received' ? 'in' : 'out'),
     category: d.category ? (byKey[String(d.category).toLowerCase()] || null) : null,
     period,
     from: period === 'range' ? iso(d.from) : null,

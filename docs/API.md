@@ -25,7 +25,7 @@ Login, registration and recovery are rate-limited per IP and per email (15-minut
 | `POST /api/logout` | | ends this session |
 | `POST /api/sync` | see below | see below |
 | `POST /api/admin/*` | admin only | `unlock`, `users`, `reset`, `role`, `entries`, delete user; each sensitive call re-checks the admin's password and is written to `admin_log` |
-| `POST /api/ai/ask` | `question, today` | `{ spec }` — a filter (metric, category, period, account, cardOnly); the app computes the total locally. 60/day per person |
+| `POST /api/ai/ask` | `question, today` | `{ spec }` — a filter (metric — spent/received/net/count/min/max/average — flow, category, period, account, cardOnly); the app computes the total locally. 60/day per person |
 | `POST /api/ai/parse` | `text, today` | `entries: [{ title, amount, type, category, date, currency }]`; Workers AI, validated field by field; 40 a day per person |
 
 `user` = `{ email, name, currency, altCurrency, rate, rateUpdatedAt, createdAt, categories, categoriesUpdatedAt }`. `categories` is the person's own list, `[{ id: 'c_…', label, emoji, words }]` (up to 30); `PATCH /api/me` with `categories` replaces it. Records may use those ids as their category. `rate` is how many `altCurrency` make 1 `currency`.

@@ -668,13 +668,20 @@ function askExamples() {
 
 function askAnswerHtml(r, viaAI) {
   const s = r.spec;
-  const value = r[s.metric === 'count' ? 'count' : s.metric];
-  const what = describeSpec(s) || (s.metric === 'received' ? 'received' : s.metric === 'net' ? 'net' : 'spent');
+  let what = describeSpec(s);
+  const inWord = s.flow === 'in' || s.metric === 'received';
+  if (s.metric === 'min' || s.metric === 'max' || s.metric === 'average') what = what.replace(/\bin total\b/, '').replace(/\s+/g, ' ').trim();
   let head;
-  if (s.metric === 'count') head = '<b>' + plural(value, 'entry', 'entries') + '</b> ' + esc(what);
-  else {
+  if (s.metric === 'count') head = '<b>' + plural(r.count, 'entry', 'entries') + '</b> ' + esc(what || (inWord ? 'received' : 'spent'));
+  else if (s.metric === 'min' || s.metric === 'max') {
+    const top = r.rows[0];
+    if (!top) head = 'No matching entries' + (what ? ' ' + esc(what) : '') + '.';
+    else head = 'Your ' + (s.metric === 'min' ? 'lowest' : 'highest') + ' ' + (inWord ? 'amount in' : 'spend') + (what ? ' ' + esc(what) : '') + ' was <b>' + esc(money(top.amount)) + '</b> · ' + esc(top.title);
+  } else if (s.metric === 'average') {
+    head = 'On average that’s <b>' + esc(money(r.average)) + '</b> per entry' + (what ? ' ' + esc(what) : '') + ' (' + plural(r.flowCount, 'entry', 'entries') + ')';
+  } else {
     const verb = s.metric === 'received' ? 'received' : s.metric === 'net' ? 'net' : 'spent';
-    head = 'You ' + verb + ' <b>' + esc(money(value)) + '</b> ' + esc(what);
+    head = 'You ' + verb + ' <b>' + esc(money(r[s.metric])) + '</b> ' + esc(what || verb);
   }
   const rows = r.rows.slice(0, 6).map((t) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(t.id) + '"><span class="dr-t">' + esc(t.title) + '</span><span class="dr-d">' + esc(catOf(t.category).label) + ' · ' + esc(t.date) + (t.account ? ' · ' + esc(t.account) : '') + '</span><span class="dr-a num">' + esc(money(t.amount)) + '</span></button>').join('');
   return '<div class="ask-answer"><div class="ask-head">' + head + '</div>' +

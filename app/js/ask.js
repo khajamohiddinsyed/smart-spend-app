@@ -43,12 +43,23 @@ export function runQuery(spec) {
   });
   const out = rows.filter((t) => t.type === 'out'), inn = rows.filter((t) => t.type === 'in');
   const sum = (l) => round2(l.reduce((s, t) => s + t.amount, 0));
+  // Which side the min/max/average looks at: money in for received-type questions, else money out.
+  const flow = spec.flow === 'in' ? inn : spec.flow === 'both' ? rows : out;
+  const amts = flow.map((t) => t.amount);
+  const min = amts.length ? round2(Math.min.apply(null, amts)) : 0;
+  const max = amts.length ? round2(Math.max.apply(null, amts)) : 0;
+  const average = amts.length ? round2(sum(flow) / flow.length) : 0;
+  var ordered;
+  if (spec.metric === 'min') ordered = flow.slice().sort((a, b) => a.amount - b.amount);
+  else if (spec.metric === 'max') ordered = flow.slice().sort((a, b) => b.amount - a.amount);
+  else ordered = (spec.metric === 'received' ? inn : spec.metric === 'net' ? rows : spec.metric === 'average' ? flow : out).slice()
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt));
   return {
     spec, from, to,
     spent: sum(out), received: sum(inn), net: round2(sum(inn) - sum(out)),
-    count: spec.metric === 'received' ? inn.length : spec.metric === 'net' ? rows.length : out.length,
-    rows: (spec.metric === 'received' ? inn : spec.metric === 'net' ? rows : out)
-      .slice().sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt))
+    min, max, average, flowCount: flow.length,
+    count: spec.metric === 'received' ? inn.length : spec.metric === 'net' ? rows.length : flow.length,
+    rows: ordered
   };
 }
 
@@ -97,15 +108,19 @@ export function parseQuestionLocal(q) {
   const category = matchCategory(s);
   const cardOnly = /\b(card|credit card|on cards?)\b/i.test(s) && !/\d{4}/.test(s);
   const acctMatch = /\b(\d{4})\b/.exec(s);
-  let metric = 'spent';
-  if (WEEK.received.test(s)) metric = 'received';
+  const isIn = WEEK.received.test(s);
+  let metric = isIn ? 'received' : 'spent';
   if (WEEK.net.test(s)) metric = 'net';
   if (WEEK.count.test(s)) metric = 'count';
+  if (/\b(lowest|smallest|cheapest|least|minimum|min)\b/.test(s)) metric = 'min';
+  else if (/\b(highest|largest|biggest|most expensive|dearest|maximum|max|priciest|costliest)\b/.test(s)) metric = 'max';
+  else if (/\b(average|avg|mean|on average|typical)\b/.test(s)) metric = 'average';
+  const flow = isIn ? 'in' : 'out';
   // Need at least a period or a category to be confident it's a spending question.
   if (!period && !category && !cardOnly && !acctMatch && !WEEK.spent.test(s) && metric === 'spent') return null;
   if (!period && !category && !cardOnly && !acctMatch) return null;
   return {
-    metric, category, categoryLabel: category ? catOf(category).label : null,
+    metric, flow, category, categoryLabel: category ? catOf(category).label : null,
     period: period || 'this_month', from: null, to: null,
     account: acctMatch ? acctMatch[1] : null, cardOnly
   };
