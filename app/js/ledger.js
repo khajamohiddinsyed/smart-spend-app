@@ -339,6 +339,13 @@ export function sortedTxns(list) {
   return list.slice().sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : b.createdAt - a.createdAt));
 }
 export function inMonth(list, y, m) { const p = monthKey(y, m) + '-'; return list.filter((t) => t.date.indexOf(p) === 0); }
+/** Running net (money in minus out) of everything dated before the given month — what carries in. */
+export function openingBalance(y, m) {
+  const key = monthKey(y, m);
+  let bal = 0;
+  state.txns.forEach((t) => { if (t.date.slice(0, 7) < key) bal += (t.type === 'in' ? t.amount : -t.amount); });
+  return round2(bal);
+}
 export function totals(list) {
   const r = { tin: 0, tout: 0, nin: 0, nout: 0 };
   list.forEach((t) => { if (t.type === 'in') { r.tin += t.amount; r.nin++; } else { r.tout += t.amount; r.nout++; } });

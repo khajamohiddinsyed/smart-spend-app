@@ -5,7 +5,7 @@ import {
   monthKey, round2, APP_VERSION, store
 } from './core.js';
 import { CATEGORIES, catOf, customCategories } from './categories.js';
-import { state, inMonth, totals, categorySpend, monthlySeries, cumulativeSpend, sortedTxns, dayAggregates, getBudgets, knownAccounts, accountTotals, isCard } from './ledger.js';
+import { state, inMonth, totals, categorySpend, monthlySeries, cumulativeSpend, sortedTxns, dayAggregates, getBudgets, knownAccounts, accountTotals, isCard, openingBalance } from './ledger.js';
 import { describe } from './sync.js';
 import { ui } from './appstate.js';
 import { cur, currencyInfo, fmtMoney } from './currency.js';
@@ -103,21 +103,23 @@ export function homeView() {
     };
   }
 
+  const opening = openingBalance(y, m), bal = round2(opening + t.net);
   const inPct = t.tin + t.tout > 0 ? (t.tin / (t.tin + t.tout)) * 100 : 50;
   const rate = t.tin > 0 ? Math.round((t.net / t.tin) * 100) : null;
   html += '<section class="hero" aria-label="This month">' +
     '<div class="hero-top">' + monthSwitch() +
     curToggle() + '</div>' +
-    '<div class="hero-label">Net balance · ' + esc(monthLabel(y, m)) + '</div>' +
-    '<div class="hero-value"' + (cur.alt ? ' data-act="cur-flip" title="Tap to switch currency"' : '') + '>' + esc((t.net > 0 ? '+' : '') + money(t.net)) + '</div>' +
-    (cur.alt ? '<div class="hero-alt num">' + esc((t.net > 0 ? '+' : '') + moneyAlt(t.net)) + '</div>' : '') +
+    '<div class="hero-label">Balance · ' + (isThisMonth(y, m) ? 'now' : 'end of ' + esc(MONTHS[m])) + '</div>' +
+    '<div class="hero-value"' + (cur.alt ? ' data-act="cur-flip" title="Tap to switch currency"' : '') + '>' + esc((bal > 0 ? '+' : '') + money(bal)) + '</div>' +
+    (cur.alt ? '<div class="hero-alt num">' + esc((bal > 0 ? '+' : '') + moneyAlt(bal)) + '</div>' : '') +
+    (opening ? '<div class="hero-carry">' + esc((opening > 0 ? '+' : '') + money(opening)) + ' carried over · ' + esc((t.net > 0 ? '+' : '') + money(t.net)) + ' ' + esc(monthLabel(y, m)) + '</div>' : '') +
     '<div class="split-bar" aria-hidden="true"><i style="width:' + inPct.toFixed(1) + '%;background:var(--in)"></i><i style="flex:1;background:var(--out)"></i></div>' +
     '<div class="hero-split">' +
-    '<div><span class="k"><i style="background:var(--in)"></i>Money in</span><span class="v num">' + esc(money(t.tin)) + '</span></div>' +
-    '<div><span class="k"><i style="background:var(--out)"></i>Money out</span><span class="v num">' + esc(money(t.tout)) + '</span></div></div>' +
+    '<div><span class="k"><i style="background:var(--in)"></i>In · ' + esc(MONTHS[m]) + '</span><span class="v num">' + esc(money(t.tin)) + '</span></div>' +
+    '<div><span class="k"><i style="background:var(--out)"></i>Out · ' + esc(MONTHS[m]) + '</span><span class="v num">' + esc(money(t.tout)) + '</span></div></div>' +
     '<div class="hero-note">' + (rate == null ? (t.tout ? 'No money in recorded this month yet.' : 'Nothing recorded this month yet.') :
-      rate >= 0 ? 'You kept <b>' + rate + '%</b> of what came in.' : 'Spending is <b>' + Math.abs(rate) + '%</b> above what came in.') +
-      (cardSpend(list) ? ' 💳 ' + esc(money(cardSpend(list))) + ' of the spending was on credit cards.' : '') + '</div>' +
+      rate >= 0 ? 'You kept <b>' + rate + '%</b> of what came in this month.' : 'Spending is <b>' + Math.abs(rate) + '%</b> above what came in this month.') +
+      (cardSpend(list) ? ' 💳 ' + esc(money(cardSpend(list))) + ' on credit cards.' : '') + '</div>' +
     '</section>';
 
   html += installBanner();

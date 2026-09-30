@@ -658,3 +658,4 @@ button.set-row:hover { background: var(--surface-2); }
 .ask-sub { color: var(--text-3); font-size: 12.5px; margin: 6px 0 4px; }
 .ask-answer .btn.block { margin-top: 8px; }
 .ask-ai { color: var(--text-3); font-size: 12px; margin-top: 10px; }
+.hero-carry { color: var(--text-2); font-size: 13px; margin-top: 5px; }
