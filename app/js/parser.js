@@ -317,15 +317,26 @@ function cleanTitle(t) {
 // "spent 40 on fuel" is "Fuel".
 var FILLER_LEAD = /^\s*(?:(?:i|we)\s+|i'?ve\s+|we'?ve\s+)?(?:(?:have|had)\s+)?(?:also\s+)?(?:spent|spend|paid|pay|bought|buy|purchased)\b(?:\s+(?:on|for|at))*\s*/i;
 var FILLER_TAIL = /\s+(?:spent|paid)\s*$/i;
-function itemName(text, amt) {
-  if (!amt || !amt.spans) return text;
+function itemName(text, spans) {
   var out = text;
-  amt.spans.slice().sort(function (a, b) { return b[0] - a[0]; }).forEach(function (sp) {
+  (spans || []).slice().sort(function (a, b) { return b[0] - a[0]; }).forEach(function (sp) {
     out = out.slice(0, sp[0]) + ' ' + out.slice(sp[1]);
   });
   out = out.replace(/\s+/g, ' ').trim().replace(/^(?:[,;:.\-–—+&*•·\s]|and\b|then\b|also\b|plus\b)+/i, '').trim();
   var stripped = out.replace(FILLER_LEAD, '').replace(FILLER_TAIL, '').replace(/^(?:(?:for|on|at|of|to)\s+)+/i, '').replace(/^(?:my|our)\s+/i, '').trim();
   return /[a-z]/i.test(stripped) ? stripped : out;
+}
+
+// Money moved INTO one of your own accounts/cards: "added 500 to my card", "topped up
+// wallet 200", "salary credited to my account". These are money in, and name the account.
+var TOPUP_VERB = /\b(?:added|add|loaded|load|reloaded|topped up|top ?up|deposited|deposit|transferred|moved|credited|recharged|put)\b/i;
+var ACCT_NAME = '((?:[a-z0-9][a-z0-9&]*\\s+){0,3}?(?:(?:credit card|debit card|card|a\\/c)(?:\\s*(?:no\\.?\\s*)?[x*]*\\d{2,4})?|account|acc|wallet|savings))';
+var ACCT_PREP = new RegExp('\\b(?:to|into|onto|from|on|in|via|using|with)\\s+(?:my\\s+|the\\s+|our\\s+)?' + ACCT_NAME, 'i');
+var ACCT_VERB = new RegExp('\\b(?:added|loaded|reloaded|topped up|top ?up|deposited|recharged)\\s+(?:my\\s+|the\\s+)?' + ACCT_NAME, 'i');
+function accountFromText(text) {
+  var m = ACCT_PREP.exec(text) || ACCT_VERB.exec(text);
+  if (!m) return null;
+  return { name: m[1].replace(/\s+/g, ' ').trim(), start: m.index, end: m.index + m[0].length };
 }
 
 function analyzeSegment(seg, ctx) {
@@ -339,10 +350,17 @@ function analyzeSegment(seg, ctx) {
     dated = true;
   }
   var amt = extractAmount(text, ctx.rate);
-  var det = detectCategory(text, ctx.learned);
+  var acct = accountFromText(text);
+  var titleText = acct ? (text.slice(0, acct.start) + ' ' + text.slice(acct.end)).replace(/\s+/g, ' ').trim() : text;
+  var det = detectCategory(titleText || text, ctx.learned);
   var category = ctx.forced || det.id;
-  var type = detectDirection(text, category, amt ? amt.sign : '');
-  var title = cleanTitle(itemName(text, amt)) || catOf(category).label;
+  // "added/topped up/credited … <card/account/wallet>" is money IN unless a sign says otherwise.
+  var topup = !!acct && TOPUP_VERB.test(text) && !/\bsent to\b/i.test(text);
+  var type = amt && amt.sign === '+' ? 'in' : amt && amt.sign === '-' ? 'out' : topup ? 'in' : detectDirection(titleText || text, category, amt ? amt.sign : '');
+  var spans = amt && amt.spans ? amt.spans.slice() : [];
+  if (acct) spans.push([acct.start, acct.end]);
+  var title = cleanTitle(itemName(text, spans)) || (acct ? titleCase(acct.name) : catOf(category).label);
+  if (topup && (!title || /^(?:added|add|loaded|load|reloaded|put|deposited|deposit|topped up|top ?up|moved|transferred|recharged)$/i.test(title))) title = 'Top-up';
   return {
     title: title,
     amount: amt ? amt.value : 0,
@@ -357,6 +375,7 @@ function analyzeSegment(seg, ctx) {
     catHint: det.hint,
     date: date,
     dated: dated,
+    account: acct ? titleCase(acct.name) : undefined,
     inherited: false
   };
 }

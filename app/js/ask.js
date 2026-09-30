@@ -27,7 +27,7 @@ export function periodRange(period, from, to) {
 }
 const PERIOD_LABEL = {
   today: 'today', yesterday: 'yesterday', this_week: 'this week', last_week: 'last week',
-  this_month: 'this month', last_month: 'last month', this_year: 'this year', all: 'in all time', range: ''
+  this_month: 'this month', last_month: 'last month', this_year: 'this year', all: 'in total', range: ''
 };
 
 /* ---------- run a query against the ledger ---------- */
@@ -63,7 +63,7 @@ export function describeSpec(spec) {
 
 /* ---------- local parser (no network) ---------- */
 
-const WEEK = { spent: /\b(spend|spent|spending|pay|paid|cost)\b/i, received: /\b(receiv|earn|income|got paid|credited|salary|made)\b/i, net: /\b(net|balance|left|save[d]?|saving)\b/i, count: /\bhow many\b|\bnumber of\b|\bcount\b/i };
+const WEEK = { spent: /\b(spend|spent|spending|pay|paid|cost)\b/i, received: /\b(receiv|earn|income|got paid|credited|salary|made|added|add|loaded|load|top ?up|topped|deposit|deposited|put in)\b/i, net: /\b(net|balance|left|save[d]?|saving)\b/i, count: /\bhow many\b|\bnumber of\b|\bcount\b/i };
 
 function matchPeriod(q) {
   if (/\btoday\b|\btonight\b/.test(q)) return 'today';
@@ -73,7 +73,7 @@ function matchPeriod(q) {
   if (/\blast month\b|\bprevious month\b/.test(q)) return 'last_month';
   if (/\bthis month\b|\bthe month\b|\bmonthly\b/.test(q)) return 'this_month';
   if (/\bthis year\b|\bthe year\b|\byearly\b|\bytd\b/.test(q)) return 'this_year';
-  if (/\ball time\b|\bever\b|\boverall\b|\bin total\b|\btotal\b/.test(q)) return 'all';
+  if (/\ball time\b|\bever\b|\boverall\b|\bin total\b|\btotal\b|\btill date\b|\bto date\b|\bso far\b|\buntil now\b|\btill now\b|\btill today\b|\blifetime\b|\bsince (?:the )?beginning\b|\bfrom (?:the )?(?:start|beginning)\b/.test(q)) return 'all';
   return null;
 }
 

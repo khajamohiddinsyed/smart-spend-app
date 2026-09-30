@@ -36,6 +36,7 @@ Smart Spend is a money tracker you talk to in plain words. No forms, no dropdown
 - 🧃 `juice 15` → **Juice** · 15. The number goes into the amount; the name stays clean.
 - ⛽ `spent 40 on fuel and 18 coffee yesterday` → **Fuel** 40 ☕ **Coffee** 18, both dated yesterday
 - 💼 `salary 14,500 credited` → money **in** 💚, filed under Salary
+- 💳 `added 500 to my card` · `topped up wallet 200` → money **in**, tagged to that card or account
 - 📅 `on 24th sep: taxi 30, lunch 45` → both on 24 September
 - 🛒 `3 coffee x 12` · `2 coffees @ 15` · `3 shirts 40 each` → worked out for you: 36 · 30 · 120
 - 🔢 `rent 2.5k` · `petrol 2 lakh` · `fifty for parking` → 2,500 · 200,000 · 50
