@@ -220,7 +220,7 @@ function onViewClick(e) {
     case 'drop-edit': openEdit(t.getAttribute('data-id')); break;
     case 'cat-toggle': { const id = t.getAttribute('data-cat'); ui.expanded[id] = !ui.expanded[id]; render(); break; }
     case 'cat-view': ui.category = t.getAttribute('data-cat'); ui.account = 'all'; ui.filter = 'all'; ui.search = ''; if (ui.scope === 'day') ui.scope = 'month'; go('activity', { force: true }); break;
-    case 'cat-clear': ui.category = 'all'; if (ui.scope === 'range') { ui.scope = 'month'; ui.rangeFrom = ui.rangeTo = null; } render(); break;
+    case 'cat-clear': ui.category = 'all'; ui.cardsOnly = false; if (ui.scope === 'range' || ui.scope === 'all') { ui.scope = 'month'; ui.rangeFrom = ui.rangeTo = null; } render(); break;
     case 'budgets': openBudgets(); break;
     case 'install': install(); break;
     case 'example': openQuickAdd(t.getAttribute('data-text')); break;

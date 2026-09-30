@@ -639,9 +639,10 @@ export function openAsk(prefill) {
   let lastSpec = null;
   function seeAll() {
     if (!lastSpec) return;
-    ui.category = lastSpec.category || 'all'; ui.account = 'all'; ui.filter = lastSpec.metric === 'received' ? 'in' : lastSpec.metric === 'net' ? 'all' : 'out';
-    ui.search = ''; const r = periodRange(lastSpec.period, lastSpec.from, lastSpec.to);
-    ui.scope = 'range'; ui.rangeFrom = r.from; ui.rangeTo = r.to;
+    ui.category = lastSpec.category || 'all'; ui.account = 'all'; ui.cardsOnly = !!lastSpec.cardOnly; ui.filter = lastSpec.metric === 'received' ? 'in' : lastSpec.metric === 'net' ? 'all' : 'out';
+    ui.search = '';
+    if (lastSpec.period === 'all') { ui.scope = 'all'; ui.rangeFrom = ui.rangeTo = null; }         // no odd 1900–9999 range
+    else { const r = periodRange(lastSpec.period, lastSpec.from, lastSpec.to); ui.scope = 'range'; ui.rangeFrom = r.from; ui.rangeTo = r.to; }
     closeSheet(); emit('go-activity');
   }
   async function run() {

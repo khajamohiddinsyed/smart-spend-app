@@ -173,6 +173,7 @@ function scopedTxns() {
   if (q) list = state.txns.filter((t) => (t.title + ' ' + catOf(t.category).label + ' ' + t.amount + ' ' + (t.account || '')).toLowerCase().indexOf(q) !== -1);
   if (ui.account !== 'all') list = list.filter((t) => (t.account || '') === ui.account);
   if (ui.category !== 'all') list = list.filter((t) => t.category === ui.category);
+  if (ui.cardsOnly) list = list.filter((t) => isCard(t.account));
   return list;
 }
 
@@ -200,9 +201,10 @@ export function activityCounts() {
 
 function categoryBanner() {
   const isRange = ui.scope === 'range' && ui.rangeFrom;
-  if (ui.category === 'all' && !isRange) return '';
+  if (ui.category === 'all' && !isRange && !ui.cardsOnly) return '';
   const bits = [];
   if (ui.category !== 'all') bits.push('<b>' + esc(catOf(ui.category).label) + '</b>');
+  if (ui.cardsOnly) bits.push('<b>cards</b>');
   if (isRange) bits.push('<b>' + esc(fmtDate(ui.rangeFrom)) + ' – ' + esc(fmtDate(ui.rangeTo)) + '</b>');
   return '<div class="filter-banner">' + (ui.category !== 'all' ? catIcon(ui.category) : icon('activity')) +
     '<span>Showing ' + bits.join(' · ') + '</span>' +

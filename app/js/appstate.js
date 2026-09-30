@@ -13,6 +13,7 @@ export const ui = {
   category: 'all',                  // 'all' or a category id (Activity filter)
   expanded: {},                     // category id -> true, expanded rows in Insights 'Where it went'
   rangeFrom: null, rangeTo: null,   // for scope 'range' (set by Ask -> See all)
+  cardsOnly: false,                 // Activity: show only card entries (set by Ask -> See all)
   search: '',
   flash: {},                        // ids to highlight after add/edit
   install: null,                    // deferred install prompt, when the browser offers one
@@ -25,7 +26,7 @@ export function resetScreenState() {
   ui.selected = todayISO();
   ui.scope = 'month';
   ui.filter = 'all';
-  ui.rangeFrom = null; ui.rangeTo = null;
+  ui.rangeFrom = null; ui.rangeTo = null; ui.cardsOnly = false;
   ui.account = 'all';
   ui.category = 'all';
   ui.expanded = {};

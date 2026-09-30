@@ -659,3 +659,4 @@ button.set-row:hover { background: var(--surface-2); }
 .ask-answer .btn.block { margin-top: 8px; }
 .ask-ai { color: var(--text-3); font-size: 12px; margin-top: 10px; }
 .hero-carry { color: var(--text-2); font-size: 13px; margin-top: 5px; }
+.filter-banner > svg { width: 20px; height: 20px; flex: none; color: var(--text-2); }
