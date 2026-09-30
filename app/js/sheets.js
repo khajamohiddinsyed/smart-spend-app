@@ -1,6 +1,6 @@
 // Bottom sheets: quick add, edit, budgets, restore, currency, password, recovery code, help.
 
-import { $, esc, plural, fmtDate, fromISO, round2, haptic, todayISO, MONTHS_FULL, pad } from './core.js';
+import { $, esc, plural, fmtDate, fromISO, round2, haptic, todayISO, MONTHS_FULL, pad, emit } from './core.js';
 import { CATEGORIES, catOf, customCategories, detectCategory } from './categories.js';
 import { parseInput } from './parser.js';
 import {
@@ -12,6 +12,7 @@ import { cur, CURRENCIES, currencyInfo, suggestedRate, fmtMoney } from './curren
 import { ui } from './appstate.js';
 import { icon, catIcon, openSheet, updateSheet, closeSheet, toast, money, moneyAlt, armed, prefs } from './ui.js';
 import { examplePhrases } from './views.js';
+import { parseQuestionLocal, runQuery, describeSpec, periodRange } from './ask.js';
 
 const expenseCats = () => CATEGORIES.filter((c) => c.id !== 'Salary' && c.id !== 'Freelance');
 
@@ -617,4 +618,66 @@ async function adminViewEntries(u) {
     foot: '<button class="btn" data-close>Close</button>',
     click: (e, t) => { const b = t.closest('[data-adm-user]'); if (b) adminUser(u); }
   });
+}
+
+/* ============================== ASK ============================== */
+
+// Ask a plain question about your own spending. Local parser first; AI only for unusual phrasing.
+// The number is always computed from the ledger (ask.js), never by the AI.
+export function openAsk(prefill) {
+  const ex = askExamples();
+  openSheet({
+    title: 'Ask your spending',
+    body: '<form class="form" id="askForm" novalidate><div class="ask-in"><input class="input" id="askQ" autocomplete="off" placeholder="e.g. how much on food & drinks this week?" value="' + esc(prefill || '') + '" data-autofocus>' +
+      '<button class="btn primary" type="submit" id="askGo">' + icon('spark') + 'Ask</button></div>' +
+      '<div class="examples">' + ex.map((e) => '<button type="button" data-ask-ex="' + esc(e) + '">' + esc(e) + '</button>').join('') + '</div>' +
+      '<div id="askOut" aria-live="polite"></div></form>',
+    submit: () => run(),
+    click: (e, t) => { const x = t.closest('[data-ask-ex]'); if (x) { $('#askQ').value = x.getAttribute('data-ask-ex'); run(); } if (t.closest('[data-ask="all"]')) seeAll(); }
+  });
+  if (prefill) run();
+  let lastSpec = null;
+  function seeAll() {
+    if (!lastSpec) return;
+    ui.category = lastSpec.category || 'all'; ui.account = 'all'; ui.filter = lastSpec.metric === 'received' ? 'in' : lastSpec.metric === 'net' ? 'all' : 'out';
+    ui.search = ''; const r = periodRange(lastSpec.period, lastSpec.from, lastSpec.to);
+    ui.scope = 'range'; ui.rangeFrom = r.from; ui.rangeTo = r.to;
+    closeSheet(); emit('go-activity');
+  }
+  async function run() {
+    const q = $('#askQ').value.trim();
+    if (!q) return;
+    const out = $('#askOut'); out.innerHTML = '<div class="ask-thinking">Working it out…</div>';
+    let spec = parseQuestionLocal(q), viaAI = false;
+    if (!spec) {
+      if (!signedIn()) { out.innerHTML = '<div class="msg">Log in to ask questions.</div>'; return; }
+      try { spec = (await api('POST', '/api/ai/ask', { question: q, today: todayISO() })).spec; viaAI = true; }
+      catch (e) { out.innerHTML = '<div class="msg">' + esc(e.code === 'offline' ? 'You’re offline. Try a simpler question like “food this week”.' : e.message) + '</div>'; return; }
+    }
+    lastSpec = spec;
+    const r = runQuery(spec);
+    out.innerHTML = askAnswerHtml(r, viaAI);
+  }
+}
+
+function askExamples() {
+  const c = customCategories()[0];
+  return ['How much on food & drinks this week?', 'What did I spend today?', 'Spending on cards this month', c ? 'How much on ' + c.label + ' this month?' : 'How much on groceries last month?', 'How much did I receive this month?'];
+}
+
+function askAnswerHtml(r, viaAI) {
+  const s = r.spec;
+  const value = r[s.metric === 'count' ? 'count' : s.metric];
+  const what = describeSpec(s) || (s.metric === 'received' ? 'received' : s.metric === 'net' ? 'net' : 'spent');
+  let head;
+  if (s.metric === 'count') head = '<b>' + plural(value, 'entry', 'entries') + '</b> ' + esc(what);
+  else {
+    const verb = s.metric === 'received' ? 'received' : s.metric === 'net' ? 'net' : 'spent';
+    head = 'You ' + verb + ' <b>' + esc(money(value)) + '</b> ' + esc(what);
+  }
+  const rows = r.rows.slice(0, 6).map((t) => '<button class="drop-row" data-act="drop-edit" data-id="' + esc(t.id) + '"><span class="dr-t">' + esc(t.title) + '</span><span class="dr-d">' + esc(catOf(t.category).label) + ' · ' + esc(t.date) + (t.account ? ' · ' + esc(t.account) : '') + '</span><span class="dr-a num">' + esc(money(t.amount)) + '</span></button>').join('');
+  return '<div class="ask-answer"><div class="ask-head">' + head + '</div>' +
+    (r.rows.length ? '<div class="ask-sub">' + plural(r.rows.length, 'entry', 'entries') + (r.rows.length > 6 ? ' · showing 6' : '') + '</div><div class="cat-drop" style="border:0">' + rows + '</div>' : '<div class="ask-sub">No matching entries.</div>') +
+    (r.rows.length ? '<button class="btn sm block" data-ask="all">See all in Activity</button>' : '') +
+    (viaAI ? '<div class="ask-ai">✨ Understood by AI</div>' : '') + '</div>';
 }

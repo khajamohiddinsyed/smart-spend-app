@@ -60,6 +60,10 @@ When the instant preview isn't sure (an entry lands in *General*, or part of the
 
 Add categories like ✈️ Travel, 👶 Kids or 🏠 Rent in **Settings → Categories**, with the words that belong to them (*trip, hotel, flight*). Entries with those words go there automatically, AI uses them too, and they sync to all your devices. Delete one and its entries move to General, so nothing is lost.
 
+### 💬 Ask your spending
+
+In Insights, tap **Ask about your spending…** and type a question in plain words: "how much on food & drinks this week?", "spending on cards this month", "what did I spend today?". Common questions are answered instantly on the device; unusual phrasing falls back to the AI. Either way the **number is computed from your own entries, never by the AI**, so it's always exact — and you can tap through to see the matching entries.
+
 **Also:**
 - 🗓️ **Dates in plain words:** today, yesterday, last friday, 3 days ago, last week, 24th sep, 24/09.
 - ↕️ **In or out, worked out for you:** salary, refund, cashback and received mean money in. Spent, paid and bought mean money out.

@@ -11,7 +11,7 @@ import { icon, avatar, toast, initToast, initSheet, openSheet, closeSheet, sheet
 import { homeView, activityView, activityListHtml, activityCounts, insightsView, moreView } from './views.js';
 import {
   openQuickAdd, openEdit, removeWithUndo, openBudgets, openRestore, openCurrencySettings, openChangePassword,
-  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp, openCategories, openAdmin
+  openNewRecoveryCode, openDeleteAccount, openTypingHelp, openInstallHelp, openCategories, openAdmin, openAsk
 } from './sheets.js';
 import { initGate, show as showGate, gateOpen, close as closeGate } from './gate.js';
 
@@ -220,7 +220,7 @@ function onViewClick(e) {
     case 'drop-edit': openEdit(t.getAttribute('data-id')); break;
     case 'cat-toggle': { const id = t.getAttribute('data-cat'); ui.expanded[id] = !ui.expanded[id]; render(); break; }
     case 'cat-view': ui.category = t.getAttribute('data-cat'); ui.account = 'all'; ui.filter = 'all'; ui.search = ''; if (ui.scope === 'day') ui.scope = 'month'; go('activity', { force: true }); break;
-    case 'cat-clear': ui.category = 'all'; render(); break;
+    case 'cat-clear': ui.category = 'all'; if (ui.scope === 'range') { ui.scope = 'month'; ui.rangeFrom = ui.rangeTo = null; } render(); break;
     case 'budgets': openBudgets(); break;
     case 'install': install(); break;
     case 'example': openQuickAdd(t.getAttribute('data-text')); break;
@@ -228,6 +228,7 @@ function onViewClick(e) {
     case 'currency': openCurrencySettings(); break;
     case 'categories': openCategories(); break;
     case 'admin': openAdmin(); break;
+    case 'ask': openAsk(); break;
     case 'change-password': openChangePassword(); break;
     case 'recovery-code': openNewRecoveryCode(); break;
     case 'delete-account': openDeleteAccount(() => afterAccountDeleted()); break;
@@ -425,6 +426,7 @@ function boot() {
   on('cloud', () => { renderSyncDot(); if (ui.tab === 'more' && !sheetOpen() && !/INPUT|SELECT/.test(document.activeElement && document.activeElement.tagName)) render(); });
   on('account', () => { if (!ui.profile) return; applyUser(account.user); ui.profile = profileFromAccount(); render(); });
   on('budgets', () => render());
+  on('go-activity', () => go('activity', { force: true }));
   on('prefs', () => render());
   on('toast', (t) => toast(t.msg, { tone: t.tone, duration: t.duration }));
   on('signed-out', () => { if (!ui.profile) return; closeSheet(); cancelTimers(); renderSyncDot(); showGate('relogin', { email: account.email }); });

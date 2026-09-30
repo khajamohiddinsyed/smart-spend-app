@@ -164,7 +164,9 @@ function installBanner() {
 
 function scopedTxns() {
   const { y, m } = ui.month;
-  let list = ui.scope === 'all' ? state.txns : ui.scope === 'day' ? state.txns.filter((t) => t.date === ui.selected) : inMonth(state.txns, y, m);
+  let list = ui.scope === 'all' ? state.txns
+    : ui.scope === 'range' && ui.rangeFrom ? state.txns.filter((t) => t.date >= ui.rangeFrom && t.date <= ui.rangeTo)
+    : ui.scope === 'day' ? state.txns.filter((t) => t.date === ui.selected) : inMonth(state.txns, y, m);
   const q = ui.search.trim().toLowerCase();
   if (q) list = state.txns.filter((t) => (t.title + ' ' + catOf(t.category).label + ' ' + t.amount + ' ' + (t.account || '')).toLowerCase().indexOf(q) !== -1);
   if (ui.account !== 'all') list = list.filter((t) => (t.account || '') === ui.account);
@@ -195,9 +197,13 @@ export function activityCounts() {
 }
 
 function categoryBanner() {
-  if (ui.category === 'all') return '';
-  const c = catOf(ui.category);
-  return '<div class="filter-banner">' + catIcon(ui.category) + '<span>Showing <b>' + esc(c.label) + '</b></span>' +
+  const isRange = ui.scope === 'range' && ui.rangeFrom;
+  if (ui.category === 'all' && !isRange) return '';
+  const bits = [];
+  if (ui.category !== 'all') bits.push('<b>' + esc(catOf(ui.category).label) + '</b>');
+  if (isRange) bits.push('<b>' + esc(fmtDate(ui.rangeFrom)) + ' – ' + esc(fmtDate(ui.rangeTo)) + '</b>');
+  return '<div class="filter-banner">' + (ui.category !== 'all' ? catIcon(ui.category) : icon('activity')) +
+    '<span>Showing ' + bits.join(' · ') + '</span>' +
     '<button class="btn sm" data-act="cat-clear">' + icon('close') + 'Clear</button></div>';
 }
 
@@ -269,8 +275,8 @@ export function insightsView() {
   const now = totals(inMonth(state.txns, y, m)), prev = totals(inMonth(state.txns, pm.y, pm.m));
   const cats = categorySpend(inMonth(state.txns, y, m)), budgets = budgetStates(y, m);
   const series = monthlySeries(y, m, 6);
-  let html = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' + monthSwitch() +
-    curToggle() + '</div>';
+  let html = '<button class="ask-bar" data-act="ask"><span class="qi">' + icon('spark') + '</span>Ask about your spending…</button>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' + monthSwitch() + curToggle() + '</div>';
   html += '<div class="tiles">' +
     tile('Spent', now.tout, delta(now.tout, prev.tout, false)) + tile('Received', now.tin, delta(now.tin, prev.tin, true)) + tile('Kept', now.net, delta(now.net, prev.net, true)) + '</div>';
 

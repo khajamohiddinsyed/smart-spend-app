@@ -644,3 +644,17 @@ button.set-row:hover { background: var(--surface-2); }
 .donut-wrap .tip { top: 4px; transform: translateX(-50%); }
 .where-summary { margin: 6px 2px 14px; color: var(--text-2); font-size: 13.5px; text-align: center; }
 .where-summary b { color: var(--text); }
+
+/* ask your spending */
+.ask-bar { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 14px; margin-bottom: 4px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); color: var(--text-3); font-size: 15px; text-align: left; cursor: pointer; }
+.ask-bar:hover { border-color: var(--accent); }
+.ask-bar .qi { color: var(--accent); display: inline-flex; }
+.ask-in { display: flex; gap: 8px; }
+.ask-in .input { flex: 1; }
+.ask-in .btn { flex: none; }
+.ask-thinking { color: var(--text-3); font-size: 14px; padding: 14px 2px; }
+.ask-answer { margin-top: 14px; }
+.ask-head { font-size: 17px; line-height: 1.4; } .ask-head b { color: var(--text); }
+.ask-sub { color: var(--text-3); font-size: 12.5px; margin: 6px 0 4px; }
+.ask-answer .btn.block { margin-top: 8px; }
+.ask-ai { color: var(--text-3); font-size: 12px; margin-top: 10px; }

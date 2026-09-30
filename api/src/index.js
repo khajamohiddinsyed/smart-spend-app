@@ -521,6 +521,70 @@ async function aiParse(req, env, u) {
   return { entries, model, usage: out && out.usage || null };
 }
 
+
+/**
+ * POST /api/ai/ask { question, today } -> { spec }
+ * The AI only turns a plain question into a filter; the app computes the number from the
+ * ledger, so totals are always exact. spec = { metric, category, categoryLabel, period, from, to,
+ * account, cardOnly, type }.
+ */
+const ASK_PER_DAY = 60;
+const PERIODS = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'all', 'range'];
+const METRICS = ['spent', 'received', 'net', 'count'];
+
+function askPrompt(today, cats) {
+  return [
+    'Turn a question about the person\'s own spending into a JSON filter. Reply with JSON only, no prose.',
+    'Today is ' + today + '.',
+    'Categories (use the id): ' + cats.map((c) => c.id + '=' + c.label).join('; ') + '.',
+    'Fields:',
+    '- metric: "spent" (money out), "received" (money in), "net" (in minus out), or "count" (how many entries).',
+    '- category: a category id from the list, or null for all.',
+    '- period: one of today, yesterday, this_week, last_week, this_month, last_month, this_year, all, range.',
+    '- from,to: "YYYY-MM-DD" only when period is "range", else null.',
+    '- account: text to match an account or card name (e.g. "HDFC", "8432"), or null.',
+    '- cardOnly: true if the question is about credit-card spending in general, else false.',
+    'Reply exactly like: {"metric":"spent","category":"Dining","period":"this_week","from":null,"to":null,"account":null,"cardOnly":false}'
+  ].join('\n');
+}
+
+async function aiAsk(req, env, u) {
+  if (!env.AI) throw new HttpError(503, 'ai_off', 'Ask isn’t available right now.');
+  const b = await readJson(req);
+  const question = String(b.question || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!question) throw bad('Ask a question, like “how much did I spend on food this week?”');
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(b.today) ? b.today : new Date().toISOString().slice(0, 10);
+  const mins = await tooMany(env, 'ask:' + u.id, ASK_PER_DAY, 86_400_000);
+  if (mins) throw new HttpError(429, 'ask_limit', 'You’ve used your ' + ASK_PER_DAY + ' questions for today. They come back tomorrow.');
+  const custom = parseCats(u.categories);
+  const cats = CATEGORIES.map((id) => ({ id, label: id === 'Cash' ? 'Cash/ATM' : id })).concat(custom);
+  const byKey = {}; cats.forEach((c) => { byKey[c.id.toLowerCase()] = c.id; byKey[String(c.label).toLowerCase()] = c.id; });
+  ['food & drinks', 'food and drinks', 'food', 'restaurant', 'dining'].forEach((k) => { if (!byKey[k]) byKey[k] = 'Dining'; });
+  let out;
+  try {
+    out = await env.AI.run(env.AI_MODEL || AI_MODEL, {
+      messages: [{ role: 'system', content: askPrompt(today, cats) }, { role: 'user', content: question }],
+      max_tokens: 250, temperature: 0
+    });
+  } catch (e) { console.error('ask', e && e.message); throw new HttpError(503, 'ai_busy', 'The AI can’t answer right now (it may have reached today’s free limit). Try again later.'); }
+  const raw = out && out.response;
+  const d = (typeof raw === 'object' && raw) ? raw : extractJson(raw);
+  if (!d) throw new HttpError(422, 'no_spec', 'I couldn’t understand that question. Try naming an amount of time and a category, like “food this week”.');
+  const period = PERIODS.includes(d.period) ? d.period : 'this_month';
+  const iso = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  const spec = {
+    metric: METRICS.includes(d.metric) ? d.metric : 'spent',
+    category: d.category ? (byKey[String(d.category).toLowerCase()] || null) : null,
+    period,
+    from: period === 'range' ? iso(d.from) : null,
+    to: period === 'range' ? iso(d.to) : null,
+    account: d.account ? String(d.account).replace(/[<>]/g, '').trim().slice(0, 40) : null,
+    cardOnly: !!d.cardOnly
+  };
+  spec.categoryLabel = spec.category ? (cats.find((c) => c.id === spec.category) || {}).label || null : null;
+  return { spec, model: env.AI_MODEL || AI_MODEL };
+}
+
 /* --------------------------------------------------------------- admin */
 
 async function requireAdmin(req, env) {
@@ -627,6 +691,7 @@ const ROUTES = {
   'POST /api/recovery-code': { auth: true, fn: newRecovery },
   'POST /api/sync': { auth: true, fn: sync },
   'POST /api/ai/parse': { auth: true, fn: aiParse },
+  'POST /api/ai/ask': { auth: true, fn: aiAsk },
   'POST /api/admin/unlock': { auth: true, fn: adminUnlock },
   'GET /api/admin/users': { admin: true, fn: adminUsers },
   'POST /api/admin/reset': { admin: true, fn: adminResetUser },
